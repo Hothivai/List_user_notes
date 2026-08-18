@@ -1,0 +1,1547 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="hero-section">
+  <h1 class="title">
+    <span>📑</span>
+    <span class="gradient-text">Transaction History V2</span>
+  </h1>
+  <p class="subtitle">Search and analyze transaction history across chains</p>
+</div>
+
+<div class="container">
+  <!-- Modern Filter Toolbar -->
+  <div class="filter-toolbar-tx">
+    <!-- Row 1: Wallet & Chain -->
+    <div class="filter-row">
+      <div class="filter-group-tx" style="flex: 2;">
+        <label class="filter-label-tx" for="wallet-address">
+          <i class="fa-solid fa-wallet"></i> Wallet Address
+        </label>
+        <input class="filter-input-tx" type="text" id="wallet-address" placeholder="Enter wallet address (0x...)" />
+        <span class="error-message" id="wallet-message"></span>
+      </div>
+      <div class="filter-group-tx" style="flex: 1;">
+        <label class="filter-label-tx">
+          <i class="fa-solid fa-link"></i> Chain
+        </label>
+        <div class="chain-pills" id="chain">
+          <label class="chain-pill">
+            <input type="checkbox" name="chain" value="ETH">
+            <span class="pill-label">ETH</span>
+          </label>
+          <label class="chain-pill">
+            <input type="checkbox" name="chain" value="BAS">
+            <span class="pill-label">BAS</span>
+          </label>
+          <label class="chain-pill">
+            <input type="checkbox" name="chain" value="BSC">
+            <span class="pill-label">BNB</span>
+          </label>
+          <label class="chain-pill">
+            <input type="checkbox" name="chain" value="ARB">
+            <span class="pill-label">ARB</span>
+          </label>
+          <label class="chain-pill">
+            <input type="checkbox" name="chain" value="LIN">
+            <span class="pill-label">LIN</span>
+          </label>
+          <label class="chain-pill">
+            <input type="checkbox" name="chain" value="POL">
+            <span class="pill-label">POL</span>
+          </label>
+          <label class="chain-pill">
+            <input type="checkbox" name="chain" value="SOL">
+            <span class="pill-label">SOL</span>
+          </label>
+        </div>
+        <span class="error-message" id="chain-message"></span>
+      </div>
+    </div>
+
+    <!-- Row 2: Date Range & Token -->
+    <div class="filter-row">
+      <div class="filter-group-tx">
+        <label class="filter-label-tx">
+          <i class="fa-solid fa-calendar"></i> Date Range
+        </label>
+        <div class="date-range-flex">
+          <input class="filter-input-tx" type="date" id="date-from" autocomplete="off" />
+          <span class="date-range-separator">→</span>
+          <input class="filter-input-tx" type="date" id="date-to" autocomplete="off" />
+        </div>
+        <span class="error-message" id="date-message"></span>
+      </div>
+      <div class="filter-group-tx">
+        <label class="filter-label-tx" for="symbol">
+          <i class="fa-solid fa-coins"></i> Token Name
+        </label>
+        <input class="filter-input-tx" type="text" id="symbol" placeholder="e.g. ETH, SOL, USDC" autocomplete="off" />
+        <span class="error-message" id="symbol-message"></span>
+      </div>
+    </div>
+
+    <!-- Row 3: Contract & Search Button -->
+    <div class="filter-row">
+      <div class="filter-group-tx" style="flex: 2;">
+        <label class="filter-label-tx" for="contract">
+          <i class="fa-solid fa-file-contract"></i> Contract Address (Optional)
+        </label>
+        <input class="filter-input-tx" type="text" id="contract" placeholder="Filter by specific contract address"
+          autocomplete="off" />
+        <span class="error-message" id="contract-message"></span>
+      </div>
+      <div class="filter-group-tx" style="flex: 0 0 auto; justify-content: flex-end;">
+        <label class="filter-label-tx">&nbsp;</label>
+        <button id="btn-search" class="btn-search">
+          <i class="fa-solid fa-magnifying-glass"></i> Search Transactions
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       NFT ID Search Section
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="filter-toolbar-tx nft-search-toolbar" style="margin-top: 20px; border-color: rgba(139,92,246,0.35);">
+    <div class="filter-row" style="align-items: flex-end; gap: 12px;">
+      <div class="filter-group-tx" style="flex: 1;">
+        <label class="filter-label-tx" for="nft-id-input">
+          <i class="fa-solid fa-fingerprint" style="color:#a78bfa;"></i>
+          NFT ID <span style="font-weight:400; opacity:.7;">(partial match)</span>
+        </label>
+        <input class="filter-input-tx" type="text" id="nft-id-input" placeholder="e.g. 12345 or partial like 123…"
+          autocomplete="off" />
+        <span class="error-message" id="nft-id-message"></span>
+      </div>
+      <div class="filter-group-tx" style="flex: 0 0 160px;">
+        <label class="filter-label-tx" for="nft-chain-select">
+          <i class="fa-solid fa-link" style="color:#a78bfa;"></i> Chain
+        </label>
+        <select class="filter-input-tx" id="nft-chain-select" style="padding: 10px 12px; cursor:pointer;">
+          <option value="">All Chains</option>
+          <option value="BAS">Base (BAS)</option>
+          <option value="ETH">Ethereum (ETH)</option>
+          <option value="BSC">BNB Chain (BSC)</option>
+          <option value="ARB">Arbitrum (ARB)</option>
+          <option value="LIN">Linea (LIN)</option>
+          <option value="POL">Polygon (POL)</option>
+          <option value="SOL">Solana (SOL)</option>
+        </select>
+      </div>
+      <div class="filter-group-tx" style="flex: 0 0 auto; justify-content: flex-end;">
+        <label class="filter-label-tx">&nbsp;</label>
+        <button id="btn-nft-search" class="btn-search" style="background: linear-gradient(135deg,#7c3aed,#a78bfa);">
+          <i class="fa-solid fa-hashtag"></i> Search by NFT ID
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NFT Search Results -->
+  <div id="nft-search-results-section" class="transaction-table-container" style="display:none; margin-top:16px;">
+    <div class="transaction-table-header">
+      <h2>🔍 NFT ID Search Results</h2>
+      <div class="table-actions">
+        <span id="nft-record-count" class="record-badge" style="display:none;"></span>
+        <button id="btn-nft-export-csv" class="btn-export-csv" style="display:none;">
+          <i class="fa-solid fa-download"></i> Export CSV
+        </button>
+      </div>
+    </div>
+    <div style="overflow-x:auto; width:100%;">
+      <table id="nft-search-table" class="data-table">
+        <thead>
+          <tr id="nft-header-table">
+            <th>Loading…</th>
+          </tr>
+        </thead>
+        <tbody id="nft-search-body"></tbody>
+      </table>
+    </div>
+
+    <!-- NFT Summary Section (New) -->
+    <div id="nft-summary" class="summary-section"
+      style="display: none; margin-top: 24px; border-top: 1px dashed rgba(139,92,246,0.3);">
+      <div class="summary-header">
+        <h2>📊 NFT Token Transfer Summary</h2>
+      </div>
+      <div style="overflow-x: auto; width: 100%;">
+        <table id="nft-summary-table" class="data-table">
+          <thead>
+            <tr>
+              <th>Index</th>
+              <th>Symbol</th>
+              <th>Sent</th>
+              <th>Received</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="nft-summary-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction Table Section -->
+  <div id="main-transaction-section" class="transaction-table-container">
+    <div class="transaction-table-header">
+      <h2>📋 Transactions History</h2>
+      <div class="table-actions">
+        <span id="record-count" class="record-badge" style="display: none;">0 records found</span>
+        <button id="btn-export-csv" class="btn-export-csv" style="display: none;">
+          <i class="fa-solid fa-download"></i> Export CSV
+        </button>
+      </div>
+    </div>
+    <div style="overflow-x: auto; width: 100%;">
+      <table id="transaction-table" class="data-table">
+        <thead>
+          <tr id="header-table">
+            <th>Index</th>
+            <th>Wallet Address</th>
+            <th>Chain</th>
+            <th>Date</th>
+            <th>
+              <table class="child-table-header">
+                <thead>
+                  <tr>
+                    <th class="cell-amount">Amount</th>
+                    <th class="cell-name">Name</th>
+                    <th class="cell-wallet">Wallet</th>
+                    <th class="cell-contract">Contract</th>
+                  </tr>
+                </thead>
+              </table>
+            </th>
+            <th>
+              <table class="child-table-header">
+                <thead>
+                  <tr>
+                    <th class="cell-amount">Amount</th>
+                    <th class="cell-name">Name</th>
+                    <th class="cell-wallet">Wallet</th>
+                    <th class="cell-contract">Contract</th>
+                  </tr>
+                </thead>
+              </table>
+            </th>
+            <th>
+              <table class="child-table-header">
+                <thead>
+                  <tr>
+                    <th class="cell-wallet">NFT ID</th>
+                    <th class="cell-contract">Address</th>
+                    <th class="cell-wallet">Wallet</th>
+                  </tr>
+                </thead>
+              </table>
+            </th>
+            <th>Hash</th>
+            <th>Block</th>
+          </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Summary Section -->
+    <div id="summary" class="summary-section" style="display: none;">
+      <div class="summary-header">
+        <h2>📊 Token Transfer Summary</h2>
+      </div>
+      <div style="overflow-x: auto; width: 100%;">
+        <table id="summary-table" class="data-table">
+          <thead>
+            <tr id="header-table">
+              <th>Index</th>
+              <th>Symbol</th>
+              <th>Sent</th>
+              <th>Received</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="summary_content">
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    let walletMessage = document.getElementById("wallet-message");
+    let chainMessage = document.getElementById("chain-message");
+    let dateMessage = document.getElementById("date-message");
+    let symbolMessage = document.getElementById("symbol-message");
+    let contractMessage = document.getElementById("contract-message");
+
+    walletMessage.textContent = "";
+    chainMessage.textContent = "";
+    dateMessage.textContent = "";
+    symbolMessage.textContent = "";
+    contractMessage.textContent = "";
+
+    let btnFilter = document.getElementById("btn-search");
+    let table = document.getElementById("transaction-table");
+    let body_content = table.querySelector("tbody");
+    let summary = document.getElementById("summary");
+    let summary_content = document.getElementById("summary_content");
+    let recordCount = document.getElementById("record-count");
+    let btnExportCsv = document.getElementById("btn-export-csv");
+    let globalTransactionsList = [];
+    let globalSeparateTotal = {}; // Store main search summary data
+
+    // dropdown chains
+    const chainPillsContainer = document.querySelector(".chain-pills");
+    const checkboxes = document.querySelectorAll('.chain-pills input[name="chain"]');
+    let chains = [];
+    const evmChains = ["ETH", "BAS", "BSC", "ARB", "LIN", "POL"];
+
+    // cache filter of previous transaction
+    let previousWalletAddress = "";
+    let previousChain = [];
+    let previousFromDate = "";
+    let previousToDate = "";
+    let previousSymbol = "";
+    let previousContract = "";
+
+    const URL_SCAN = {
+      "BAS": "https://basescan.org",
+      "BSC": "https://bscscan.com",
+      "ARB": "https://arbiscan.io",
+      "LIN": "https://lineascan.build",
+      "ETH": "https://etherscan.io",
+      "POL": "https://polygonscan.com",
+      // "SON":"https://sonicscan.org",
+      // "BER":"https://berascan.com",
+      "SOL": "https://solscan.io"
+    }
+    const CHAIN_NAME_PANCAKE = {
+      "BSC": "bsc",
+      "ETH": "eth",
+      "BAS": "base",
+      "ARB": "arb",
+      "LIN": "linea",
+      "POL": "polygon"
+    }
+    const NFT_URL = "https://pancakeswap.finance/liquidity"
+
+    body_content.innerHTML = `
+      <tr>
+        <td colspan="9">
+          <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+            <span>No transaction</span>
+          </div>
+        </td>
+      </tr>
+      `
+
+    function getChains(event) {
+      const changed = event.target;
+      const isChecked = changed.checked;
+      const value = changed.value;
+
+      const solCheckbox = document.querySelector('.chain-pills input[value="SOL"]');
+
+      if (isChecked) {
+        if (value === "SOL") {
+          evmChains.forEach(chain => {
+            const evmCheckbox = document.querySelector(`.chain-pills input[value="${chain}"]`);
+            if (evmCheckbox) {
+              evmCheckbox.checked = false;
+            }
+          });
+        } else if (evmChains.includes(value) && solCheckbox && solCheckbox.checked) {
+          solCheckbox.checked = false;
+        }
+      }
+
+      // Update chains array from pills
+      chains = Array.from(
+        document.querySelectorAll('.chain-pills input[name="chain"]:checked')
+      ).map(cb => cb.value);
+    }
+
+    checkboxes.forEach((cb) => {
+      cb.addEventListener("change", getChains);
+    });
+
+    btnFilter.addEventListener("click", async (event) => {
+      event.preventDefault();
+
+      // Hide NFT search sections
+      const nftSection = document.getElementById("nft-search-results-section");
+      const nftSummary = document.getElementById("nft-summary");
+      if (nftSection) nftSection.style.display = "none";
+      if (nftSummary) nftSummary.style.display = "none";
+
+      // display search section
+      document.getElementById("main-transaction-section").style.display = "block";
+      let headerRow = document.querySelector("#transaction-table thead > tr");
+      let colCount = headerRow.querySelectorAll(":scope > th").length;
+
+      let walletAddress = document.getElementById("wallet-address").value.trim();
+      // let chain = document.getElementById("chain").value.trim();
+      let dateFrom = document.getElementById("date-from").value.trim();
+      let dateTo = document.getElementById("date-to").value.trim();
+      let symbol = document.getElementById("symbol").value.trim();
+      let contract = document.getElementById("contract").value.trim();
+
+      if (previousWalletAddress.toLowerCase() === walletAddress.toLocaleLowerCase() && checkChangedChain(previousChain, chains) && previousFromDate === dateFrom && previousToDate === dateTo && previousSymbol.toLowerCase() === symbol.toLowerCase() && previousContract.toLowerCase() === contract.toLowerCase()) {
+        // Even if returning early, we must restore summary visibility if it was hidden by NFT search
+        if (Object.keys(globalSeparateTotal).length > 0) {
+          summary.style.display = "block";
+        }
+        // Scroll to results even on early return
+        setTimeout(() => {
+          const mainSection = document.getElementById("main-transaction-section");
+          if (mainSection) {
+            mainSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+        return;
+      }
+
+      const filters = {
+        walletAddress,
+        chains,
+        dateFrom,
+        dateTo,
+        symbol,
+        contract
+      }
+
+      // save previous filter cache
+      previousWalletAddress = walletAddress;
+      previousChain = chains;
+      previousFromDate = dateFrom;
+      previousToDate = dateTo;
+      previousSymbol = symbol;
+      previousContract = contract;
+
+      // refresh table header
+      let tableHeader = buildTableHeader(chains, 0);
+      renderTableHeader(table, tableHeader);
+      body_content = table.querySelector("tbody");
+      headerRow = table.querySelector("thead > tr");
+      let cols = headerRow.querySelectorAll(":scope > th").length;
+      summary_content.innerHTML = "";
+      summary.style.display = "none";
+      const html = `
+          <tr>
+            <td colspan="${cols}">
+              <div id="res-content" style="display:flex;justify-content:center;align-items:center;height:100%;">
+              <span></span>
+              </div>
+            </td>
+          </tr>
+        `;
+
+      body_content.innerHTML = html;
+
+      if (validatorFilters(filters)) {
+        try {
+          // this error because don't get id res-content
+          let res_content = document.getElementById("res-content");
+          res_content.innerHTML = `
+              <span class="loader"></span>
+            `;
+          let res = await fetch("/api/transactions-v2", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(filters)
+          });
+          let data = await res.json()
+
+          let data_array = data["transactions"];
+          globalTransactionsList = data_array;
+          data_array = sortTransactions(data_array);
+          let max_length = data["max_length"];
+          let separate_total = data["total"];
+
+          if (data_array && data_array.length > 0) {
+            recordCount.textContent = `${data_array.length} records found`;
+            recordCount.style.display = "inline-block";
+            btnExportCsv.style.display = "inline-flex";
+          } else {
+            recordCount.style.display = "none";
+            btnExportCsv.style.display = "none";
+          }
+
+          // rerender table header
+          tableHeader = buildTableHeader(chains, max_length,);
+          renderTableHeader(table, tableHeader);
+          // get length of table cols
+          headerRow = table.querySelector("thead > tr");
+          res_content = table.querySelector("tbody");
+          let cols = headerRow.querySelectorAll(":scope > th").length;
+
+          if (data_array.length === 0) {
+            res_content.innerHTML = `
+              <tr>
+                <td colspan="${cols}">
+                  <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                  <span>No transactions</span>
+                  </div>
+                </td>
+              </tr>
+              `;
+            return;
+          }
+
+          // render table body and footer            
+          body_content = table.querySelector("tbody");
+          summary_content.innerHTML = "";
+          summary.style.display = "block";
+          globalSeparateTotal = data["total"]; // Update global summary data
+
+          let { body: rowsBodyData, summary: rowsSummaryToken } = renderTransactionsContent(data_array, chains, walletAddress, max_length, globalSeparateTotal, symbol, URL_SCAN);
+
+          renderTableBody(body_content, rowsBodyData);
+
+          let mainSummaryBody = document.getElementById("summary-table").querySelector("tbody");
+          renderTableBody(mainSummaryBody, rowsSummaryToken);
+
+          // Scroll to results
+          setTimeout(() => {
+            const mainSection = document.getElementById("main-transaction-section");
+            if (mainSection) {
+              mainSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 100);
+        } catch (err) {
+          summary.style.display = "none";
+          recordCount.style.display = "none";
+          btnExportCsv.style.display = "none";
+          let cols = headerRow.querySelectorAll(":scope > th").length;
+          body_content.innerHTML = `
+            <tr>
+              <td colspan="${cols}">
+                <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                <span>No transactions</span>
+                </div>
+              </td>
+            </tr>
+            `
+        }
+
+      } else {
+        summary.style.display = "none";
+        recordCount.style.display = "none";
+        btnExportCsv.style.display = "none";
+        body_content.innerHTML = `
+          <tr>
+            <td colspan="${cols}">
+              <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+              <span>No transactions</span>
+              </div>
+            </td>
+          </tr>
+          `;
+        // console.log("Not pass")
+      }
+    });
+
+    function validatorFilters(filters) {
+      walletMessage.textContent = "";
+      chainMessage.textContent = "";
+      dateMessage.textContent = "";
+      symbolMessage.textContent = "";
+      contractMessage.textContent = "";
+
+      let isValid = true;
+      // 	validate wallet address
+      if (!filters.walletAddress) {
+        walletMessage.textContent = "Wallet address not null";
+        isValid = false;
+      } else {
+        if (filters.chains[0] === "SOL") {
+          const solRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+          if (!solRegex.test(filters.walletAddress)) {
+            walletMessage.textContent = "Invalid Solana wallet address";
+            isValid = false;
+          } else {
+            walletMessage.textContent = "";
+          }
+        } else if (!/^0x[a-fA-F0-9]{40}$/.test(filters.walletAddress)) {
+          walletMessage.textContent = "Invalid EVM wallet address";
+          isValid = false;
+        }
+      }
+
+      // 	validate chain
+      if (filters.chains.length === 0) {
+        chainMessage.textContent = "Set chain";
+      }
+
+      //  validate date
+      const now = new Date();
+      if (filters.dateFrom) {
+        const fromDate = new Date(filters.dateFrom);
+        if (fromDate > now) {
+          dateMessage.textContent = "Dates must be less than or equal to today";
+          isValid = false;
+        }
+      }
+
+      if (filters.dateTo) {
+        const toDate = new Date(filters.dateTo);
+        if (toDate > now) {
+          dateMessage.textContent = "Dates must be less than or equal to today";
+          isValid = false;
+        }
+      }
+
+      if (filters.dateFrom && filters.dateTo) {
+        const fromDate = new Date(filters.dateFrom);
+        const toDate = new Date(filters.dateTo);
+        if (fromDate > toDate) {
+          dateMessage.textContent = "Start date must be less than end date";
+          isValid = false;
+        }
+      }
+
+      // 	validate symbol
+      if (!filters.symbol) {
+        symbolMessage.textContent = "Symbol not selected";
+        isValid = false;
+      }
+
+      //  validate contracts
+      if (filters.contract) {
+        const isSolChain = filters.chains.length > 0 && filters.chains[0] === "SOL";
+        if (isSolChain) {
+          // Solana token address: base58, 32-44 chars
+          const solRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+          if (!solRegex.test(filters.contract)) {
+            contractMessage.textContent = "Invalid Solana contract address";
+            isValid = false;
+          }
+        } else {
+          // EVM contract address: 0x + 40 hex chars
+          if (!/^0x[a-fA-F0-9]{40}$/.test(filters.contract)) {
+            contractMessage.textContent = "Invalid EVM contract address";
+            isValid = false;
+          }
+        }
+      }
+
+      return isValid;
+    }
+
+    btnExportCsv.addEventListener("click", () => {
+      if (!globalTransactionsList || globalTransactionsList.length === 0) return;
+
+      const isSol = chains[0] === "SOL";
+
+      // Determine max token details across all transactions
+      let maxTokens = 2;
+      globalTransactionsList.forEach(tx => {
+        const len = (tx.details || []).length;
+        if (len > maxTokens) maxTokens = len;
+      });
+
+      // Build CSV header matching UI table
+      let headers = ["Index", "Wallet Address", "Chain", "Date"];
+      if (isSol) headers.push("Total");
+
+      // Token columns (at least 2, more if max_length > 2)
+      for (let i = 0; i < maxTokens; i++) {
+        const prefix = `Token${i + 1}`;
+        headers.push(`${prefix}_Amount`, `${prefix}_Name`, `${prefix}_Wallet`, `${prefix}_Contract`);
+      }
+
+      // NFT columns
+      headers.push("NFT_ID", "NFT_Contract", "NFT_Wallet");
+
+      // Hash and Block
+      headers.push("Hash", "Block");
+
+      // Escape CSV value
+      const csvEscape = (val) => {
+        if (val === null || val === undefined) return "";
+        const str = String(val);
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      let csvRows = [headers.join(",")];
+
+      globalTransactionsList.forEach((tx, index) => {
+        let row = [
+          index + 1,
+          tx.wallet || "",
+          tx.chain || "",
+          tx.tx_time || ""
+        ];
+
+        // Total (SOL only)
+        if (isSol) {
+          const totalStr = tx.changed_token
+            ? Object.entries(tx.changed_token).map(([sym, amt]) => `${formatedAmount(amt)} ${sym}`).join(" / ")
+            : "";
+          row.push(csvEscape(totalStr));
+        }
+
+        // Token details
+        const tokens = tx.details || [];
+        for (let i = 0; i < maxTokens; i++) {
+          if (tokens[i]) {
+            row.push(
+              csvEscape(tokens[i].amount || ""),
+              csvEscape(tokens[i].symbol || ""),
+              csvEscape(tokens[i].wallet || ""),
+              csvEscape(tokens[i].contract || "")
+            );
+          } else {
+            row.push("", "", "", "");
+          }
+        }
+
+        // NFT details
+        const nft = tx.nft || {};
+        if (nft && Object.keys(nft).length > 0) {
+          row.push(
+            csvEscape(nft.token_id || nft.nft_token_id || ""),
+            csvEscape(nft.contract || ""),
+            csvEscape(nft.wallet || "")
+          );
+        } else {
+          row.push("", "", "");
+        }
+
+        // Hash and Block
+        row.push(csvEscape(tx.hash || ""), csvEscape(tx.block || ""));
+
+        csvRows.push(row.join(","));
+      });
+
+      // BOM for Excel UTF-8 compatibility
+      const bom = "\uFEFF";
+      const csvContent = bom + csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+
+      const dateName = new Date().toISOString().slice(0, 10);
+      link.setAttribute("download", `transaction_history_v2_${dateName}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+
+    // --- Sort functions (Moved inside DOMContentLoaded) ---
+    let currentSort = { key: "date", order: "desc" };
+
+    function getSortIcon(key) {
+      if (currentSort.key !== key) return "↕";
+      return currentSort.order === "asc" ? "↑" : "↓";
+    }
+
+    function handleSort(key) {
+      if (currentSort.key === key) {
+        currentSort.order = currentSort.order === "asc" ? "desc" : "asc";
+      } else {
+        currentSort.key = key;
+        currentSort.order = "desc";
+      }
+      applySortAndRender();
+    }
+
+    function sortTransactions(transactions) {
+      if (!currentSort.key || !transactions) return transactions;
+      return [...transactions].sort((a, b) => {
+        let valA, valB;
+        if (currentSort.key === "date") {
+          valA = new Date(a.tx_time).getTime();
+          valB = new Date(b.tx_time).getTime();
+        } else if (currentSort.key.startsWith("amount_")) {
+          let idx = parseInt(currentSort.key.split("_")[1]);
+          valA = a.details && a.details[idx] ? parseFloat(a.details[idx].amount) || 0 : 0;
+          valB = b.details && b.details[idx] ? parseFloat(b.details[idx].amount) || 0 : 0;
+        }
+
+        if (valA < valB) return currentSort.order === "asc" ? -1 : 1;
+        if (valA > valB) return currentSort.order === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function applySortAndRender() {
+      if (!globalTransactionsList || globalTransactionsList.length === 0) return;
+
+      let sortedData = sortTransactions(globalTransactionsList);
+
+      let max_length = 0;
+      sortedData.forEach(tx => {
+        if (tx.details && tx.details.length > max_length) {
+          max_length = tx.details.length;
+        }
+      });
+
+      let tableHeader = buildTableHeader(previousChain, max_length);
+      let table = document.getElementById("transaction-table");
+      renderTableHeader(table, tableHeader);
+
+      let symbolStr = document.getElementById("symbol").value.trim();
+      let { body: rowsBodyData, summary: rowsSummaryToken } = renderTransactionsContent(sortedData, previousChain, previousWalletAddress, max_length, globalSeparateTotal, previousSymbol || symbolStr, URL_SCAN);
+      let body_content = table.querySelector("tbody");
+      renderTableBody(body_content, rowsBodyData);
+
+      let mainSummaryTable = document.getElementById("summary-table");
+      if (mainSummaryTable && rowsSummaryToken && rowsSummaryToken.length > 0) {
+        let mainSummaryBody = mainSummaryTable.querySelector("tbody");
+        renderTableBody(mainSummaryBody, rowsSummaryToken);
+      }
+    }
+
+    // Assign to window if they are referenced from dynamically created inline handlers (actually they are added via addEventListener, so closure scope works directly!)
+    // However, buildTableHeader and renderTableHeader might need them if they were outside? 
+    // Wait, buildTableHeader and renderTableHeader are outside, but they only addEventListener(() => handleSort(..)), which references handleSort.
+    // If handleSort is inside DOMContentLoaded, renderTableHeader (which is outside) will NOT see it.
+    // So we must expose handleSort and getSortIcon to the window.
+    window.handleSort = handleSort;
+    window.getSortIcon = getSortIcon;
+    // --- End Sort functions ---
+
+  });
+
+  function truncatedAddress(text, startChars = 4, endChars = 4) {
+    if (!text) return '';
+    if (text.length <= (startChars + endChars)) {
+      return text;
+    }
+    return text.slice(0, startChars) + '...' + text.slice(-endChars);
+  }
+
+  function getAmountColorClass(amount) {
+    let val = parseFloat(amount);
+    if (val > 0) return " text-success";
+    if (val < 0) return " text-danger";
+    return "";
+  }
+
+  function formatedAmount(value) {
+    let parsedValue = parseFloat(value);
+    let result = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4
+    }).format(parsedValue);
+
+    if (result.includes(",")) {
+      return result.split(".")[0];
+    }
+    return result;
+  }
+
+  function buildTableHeader(chains, max_length) {
+    const isSol = chains && chains.length > 0 && chains[0] === "SOL";
+
+    const tableHeader = [
+      { content: "Index" },
+      { content: "Wallet Address" },
+      { content: "Chain" },
+      { content: "Date", sortKey: "date" }
+    ];
+
+    if (isSol) {
+      tableHeader.push({
+        content: "Total"
+      });
+    }
+
+    tableHeader.push(
+      {
+        content: [
+          { class: "cell-amount", content: "Amount", sortKey: "amount_0" },
+          { class: "cell-name", content: "Name" },
+          { class: "cell-wallet", content: "Wallet" },
+          { class: "cell-contract", content: "Contract" }
+        ]
+      },
+      {
+        content: [
+          { class: "cell-amount", content: "Amount", sortKey: "amount_1" },
+          { class: "cell-name", content: "Name" },
+          { class: "cell-wallet", content: "Wallet" },
+          { class: "cell-contract", content: "Contract" }
+        ]
+      }
+    );
+
+    tableHeader.push(
+      {
+        content: [
+          { class: isSol ? "cell-wallet" : "cell-nft", content: "NFT ID" },
+          { class: "cell-contract", content: "Contract" },
+          { class: "cell-wallet", content: "Wallet" }
+        ]
+      },
+      { content: "Hash" },
+      { content: "Block" }
+    );
+
+    if (max_length > 2) {
+      for (let i = 0; i < max_length - 2; i++) {
+        let tIndex = i + 2;
+        tableHeader.push({
+          content: [
+            { class: "cell-amount", content: "Amount", sortKey: `amount_${tIndex}` },
+            { class: "cell-name", content: "Name" },
+            { class: "cell-wallet", content: "Wallet" },
+            { class: "cell-contract", content: "Contract" }
+          ]
+        });
+      }
+    }
+    return tableHeader;
+  }
+
+  function renderTableHeader(tableElement, headerData) {
+    tableElement.innerHTML = "";
+    const thead = document.createElement("thead");
+    const tbody = document.createElement("tbody");
+    const tr = document.createElement("tr");
+    // Removed global IDs to prevent conflicts between multiple tables
+
+    // render table header
+    headerData.forEach((header) => {
+      const th = document.createElement("th");
+
+      if (Array.isArray(header.content)) {
+        const childTable = document.createElement("table");
+        const childThead = document.createElement("thead");
+        const childTr = document.createElement("tr");
+
+        childTable.className = "child-table-header";
+        childTable.style.position = "relative";
+
+        header.content.forEach((cell) => {
+          const childTh = document.createElement("th");
+          if (cell.class) childTh.className = cell.class;
+
+          if (cell.sortKey) {
+            childTh.style.cursor = "pointer";
+            childTh.innerHTML = `${cell.content} <span style="font-size: 11px; margin-left: 4px;">${window.getSortIcon ? window.getSortIcon(cell.sortKey) : "↕"}</span>`;
+            childTh.addEventListener("click", () => {
+              if (window.handleSort) window.handleSort(cell.sortKey);
+            });
+          } else {
+            childTh.textContent = cell.content;
+          }
+
+          childTr.appendChild(childTh)
+        });
+        childThead.appendChild(childTr);
+        childTable.appendChild(childThead)
+        th.appendChild(childTable);
+      } else {
+        if (header.sortKey) {
+          th.style.cursor = "pointer";
+          th.innerHTML = `${header.content} <span style="font-size: 11px; margin-left: 4px;">${window.getSortIcon ? window.getSortIcon(header.sortKey) : "↕"}</span>`;
+          th.addEventListener("click", () => {
+            if (window.handleSort) window.handleSort(header.sortKey);
+          });
+        } else {
+          th.textContent = header.content;
+        }
+      }
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+
+    tableElement.appendChild(thead);
+    tableElement.appendChild(tbody);
+  }
+
+  function renderTableBody(bodyId, rowsData) {
+    bodyId.innerHTML = "";
+    rowsData.forEach((rowData) => {
+      let tr = document.createElement("tr");
+      rowData.forEach((cell) => {
+        let td = document.createElement("td");
+        if (cell.label) {
+          td.setAttribute("data-label", cell.label);
+        }
+        if (cell.class) {
+          td.setAttribute("class", cell.class);
+        }
+        if (Array.isArray(cell.content)) {
+          let subTable = document.createElement("table");
+          let subTbody = document.createElement("tbody");
+          subTable.classList.add("child-table");
+          subTable.appendChild(subTbody);
+          renderTableBody(subTbody, [cell.content]);
+          td.appendChild(subTable);
+        } else if (cell.href) {
+          let wrapper = document.createElement("span");
+          wrapper.className = "copy-wrap";
+
+          let a = document.createElement("a");
+          a.href = cell.href;
+          a.textContent = cell.content;
+          a.target = "_blank";
+          wrapper.appendChild(a);
+
+          const copyValue = cell.copyValue || cell.fullAddress;
+          if (copyValue) {
+            let copyBtn = document.createElement("button");
+            copyBtn.className = "copy-btn";
+            copyBtn.title = cell.copyTitle || "Copy address";
+            copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-tooltip">Copied!</span>`;
+            copyBtn.addEventListener("click", (e) => {
+              e.preventDefault();
+              navigator.clipboard.writeText(copyValue).then(() => {
+                copyBtn.classList.add("copied");
+                setTimeout(() => copyBtn.classList.remove("copied"), 1200);
+              });
+            });
+            wrapper.appendChild(copyBtn);
+          }
+          td.appendChild(wrapper);
+        } else if (cell.content) {
+          if (cell.isHTML) {
+            td.innerHTML = cell.content;
+          } else {
+            td.textContent = cell.content;
+          }
+        } else {
+          td.textContent = "";
+        }
+        tr.appendChild(td);
+      });
+      bodyId.appendChild(tr);
+    });
+  }
+
+  function renderTransactionsContent(transactions, chains, wallet, max_length, separate_total, symbol, URL_SCAN) {
+    let b_content = [];
+    let summary = [];
+    let isSol = chains[0] === "SOL";
+
+    transactions.forEach((transaction, index) => {
+      let chain = transaction["chain"];
+      let rows = [
+        {
+          "label": "Index",
+          "content": index + 1
+        },
+        {
+          "label": "Wallet Address",
+          "href": isSol ? `${URL_SCAN[chain]}/account/${wallet}` : `${URL_SCAN[chain]}/address/${wallet}`,
+          "content": truncatedAddress(wallet, 6, 4),
+          "fullAddress": wallet
+        },
+        {
+          "label": "Chain",
+          "content": transaction["chain"]
+        },
+        {
+          "label": "Date",
+          "content": transaction["tx_time"]
+        }
+      ];
+
+      if (isSol) {
+        let formattedTotal = Object.entries(transaction["changed_token"]).map(([symbol, amount]) => {
+          let colorClz = parseFloat(amount) > 0 ? "text-success" : (parseFloat(amount) < 0 ? "text-danger" : "");
+          return `<span class="${colorClz}">${formatedAmount(amount)} ${symbol}</span>`;
+        }).join('<br>');
+        rows.push({
+          "label": "Total",
+          "class": "no-wrap",
+          "isHTML": true,
+          "content": formattedTotal
+        })
+      }
+
+      let tokens = transaction["details"] || [];
+      let nft = transaction["nft"] || {};
+
+      if (tokens && tokens[0]) {
+        rows.push({
+          "label": "Token 1",
+          "content": [
+            {
+              "label": "Amount",
+              "class": "cell-amount" + getAmountColorClass(tokens[0]["amount"]),
+              "content": formatedAmount(tokens[0]["amount"])
+            },
+            {
+              "label": "Name",
+              "class": "cell-name",
+              "content": tokens[0]["symbol"]
+            },
+            {
+              "label": "Wallet",
+              "class": "cell-wallet",
+              "href": isSol ? `${URL_SCAN[chain]}/account/${tokens[0]["wallet"]}` : `${URL_SCAN[chain]}/address/${tokens[0]["wallet"]}`,
+              "content": truncatedAddress(tokens[0]["wallet"]),
+              "fullAddress": tokens[0]["wallet"]
+            },
+            {
+              "label": "Contract",
+              "class": "cell-contract",
+              "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[0]["contract"]}` : `${URL_SCAN[chain]}/address/${tokens[0]["contract"]}`,
+              "content": truncatedAddress(tokens[0]["contract"]),
+              "fullAddress": tokens[0]["contract"]
+            }
+          ]
+        });
+      } else {
+        rows.push(
+          {
+            "label": "Token 1",
+            "class": "no-data",
+            "content": ""
+          }
+        )
+      }
+      if (tokens && tokens[1]) {
+        rows.push({
+          "label": "Token 2",
+          "content": [
+            {
+              "label": "Amount",
+              "class": "cell-amount" + getAmountColorClass(tokens[1]["amount"]),
+              "content": formatedAmount(tokens[1]["amount"])
+            },
+            {
+              "label": "Name",
+              "class": "cell-name",
+              "content": tokens[1]["symbol"]
+            },
+            {
+              "label": "Wallet",
+              "class": "cell-wallet",
+              "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[1]["wallet"]}` : `${URL_SCAN[chain]}/address/${tokens[1]["wallet"]}`,
+              "content": truncatedAddress(tokens[1]["wallet"], 6, 4),
+              "fullAddress": tokens[1]["wallet"]
+            },
+            {
+              "label": "Contract",
+              "class": "cell-contract",
+              "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[1]["contract"]}` : `${URL_SCAN[chain]}/address/${tokens[1]["contract"]}`,
+              "content": truncatedAddress(tokens[1]["contract"], 6, 4),
+              "fullAddress": tokens[1]["contract"]
+            }
+          ]
+        });
+      } else {
+        rows.push(
+          {
+            "label": "Token 1",
+            "class": "no-data",
+            "content": ""
+          }
+        );
+      }
+
+      // add nft
+      if (nft && Object.keys(nft).length > 0) {
+        rows.push(
+          {
+            "label": "NFT Details",
+            "content": [
+              {
+                "label": "NFT ID",
+                "class": "cell-wallet",
+                "href": isSol ? `${URL_SCAN["SOL"]}/account/${nft["token_id"]}` : "",
+                "content": truncatedAddress(nft["token_id"], 6, 4),
+                "copyValue": isSol ? nft["token_id"] : "",
+                "copyTitle": "Copy NFT ID"
+              },
+              {
+                "label": "Contract",
+                "class": "cell-contract",
+                "href": isSol ? `${URL_SCAN["SOL"]}/account/${nft["contract"]}` : `${URL_SCAN[chain]}/address/${nft["contract"]}`,
+                "content": truncatedAddress(nft["contract"], 6, 4),
+                "fullAddress": nft["contract"]
+              },
+              {
+                "label": "Wallet",
+                "class": "cell-wallet",
+                "href": isSol ? `${URL_SCAN["SOL"]}/account/${nft["wallet"]}` : `${URL_SCAN[chain]}/address/${nft["wallet"]}`,
+                "content": truncatedAddress(nft["wallet"], 6, 4),
+                "fullAddress": nft["wallet"]
+              }
+            ]
+          }
+        );
+      } else {
+        rows.push({
+          "label": "NFT Details",
+          "class": "no-data",
+          "content": ""
+        });
+      }
+      // add hash and block
+      rows.push(
+        {
+          "label": "Hash",
+          "href": isSol ? `${URL_SCAN["SOL"]}/tx/${transaction["hash"]}` : `${URL_SCAN[chain]}/tx/${transaction["hash"]}`,
+          "content": truncatedAddress(transaction["hash"], 6, 4)
+        },
+        {
+          "label": "Block",
+          "href": isSol ? `${URL_SCAN["SOL"]}/block/${transaction["block"]}` : `${URL_SCAN[chain]}/block/${transaction["block"]}`,
+          "content": transaction["block"]
+        }
+      )
+
+      // add extra cell
+      if (max_length > 2) {
+        for (let i = 0; i < max_length - 2; i++) {
+          let index = i + 2;
+          if (tokens[index]) {
+            rows.push({
+              "label": `Token ${index + 1}`,
+              "content": [
+                {
+                  "label": "Amount",
+                  "class": "cell-amount" + getAmountColorClass(tokens[index]["amount"]),
+                  "content": formatedAmount(tokens[index]["amount"])
+                },
+                {
+                  "label": "Name",
+                  "class": "cell-name",
+                  "content": tokens[index]["symbol"]
+                },
+                {
+                  "label": "Wallet",
+                  "class": "cell-wallet",
+                  "href": isSol ? `${URL_SCAN[chain]}/account/${tokens[index]["wallet"]}` : `${URL_SCAN[chain]}/address/${tokens[index]["wallet"]}`,
+                  "content": truncatedAddress(tokens[index]["wallet"], 6, 4),
+                  "fullAddress": tokens[index]["wallet"]
+                },
+                {
+                  "label": "Contract",
+                  "class": "cell-contract",
+                  "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[index]["contract"]}` : `${URL_SCAN[chain]}/address/${tokens[index]["contract"]}`,
+                  "content": truncatedAddress(tokens[index]["contract"], 6, 4),
+                  "fullAddress": tokens[index]["contract"]
+                }
+              ]
+            });
+          } else {
+            rows.push(
+              {
+                "label": "Token 1",
+                "class": "no-data",
+                "content": ""
+              }
+            );
+          }
+        }
+      }
+      b_content.push(rows);
+    });
+
+    const sortedSymbols = Object.keys(separate_total).sort((a, b) => {
+      if (a.toLowerCase() === symbol.toLowerCase()) return -1;
+      if (b.toLowerCase() === symbol.toLowerCase()) return 1;
+      return a.localeCompare(b);
+    });
+
+    sortedSymbols.forEach((symbol, index) => {
+      const details = separate_total[symbol];
+      let rows = [
+        {
+          "label": "Index",
+          "content": index + 1
+        },
+        {
+          "label": "Token",
+          "content": symbol
+        },
+        {
+          "label": "Sent",
+          "class": getAmountColorClass(details["sent"]),
+          "content": formatedAmount(details["sent"])
+        },
+        {
+          "label": "Received",
+          "class": getAmountColorClass(details["received"]),
+          "content": formatedAmount(details["received"])
+        },
+        {
+          "label": "Total",
+          "class": getAmountColorClass(details["total"]),
+          "content": formatedAmount(details["total"])
+        },
+      ];
+      summary.push(rows);
+    });
+    return { "body": b_content, "summary": summary };
+  }
+
+  function removeRedudantColumns(n = 0) {
+    let headerRow = document.querySelector("#transaction-table thead > tr");
+    for (let i = 0; i < n; i++) {
+      if (headerRow.lastElementChild) {
+        headerRow.removeChild(headerRow.lastElementChild);
+      }
+    }
+  }
+
+  function checkChangedChain(prev, curr) {
+    if (prev.length !== curr.length) return false;
+
+    const sortedPrev = [...prev].sort();
+    const sortedCurr = [...curr].sort();
+    return sortedPrev.every((val, index) => val === sortedCurr[index]);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  NFT ID SEARCH
+  // ════════════════════════════════════════════════════════════════
+  (function initNftSearch() {
+    const btnNftSearch = document.getElementById("btn-nft-search");
+    const nftIdInput = document.getElementById("nft-id-input");
+    const nftChainSelect = document.getElementById("nft-chain-select");
+    const nftMsg = document.getElementById("nft-id-message");
+    const nftSection = document.getElementById("nft-search-results-section");
+    const nftTable = document.getElementById("nft-search-table");
+    const nftBody = document.getElementById("nft-search-body");
+    const nftRecordCount = document.getElementById("nft-record-count");
+    const nftExportBtn = document.getElementById("btn-nft-export-csv");
+    const nftSummary = document.getElementById("nft-summary");
+    const nftSummaryBody = document.getElementById("nft-summary-body");
+    let nftTransactionList = [];
+    let previousNftId = "";
+    let previousNftChain = "";
+
+    const NFT_URL_SCAN = {
+      "BAS": "https://basescan.org",
+      "BSC": "https://bscscan.com",
+      "ARB": "https://arbiscan.io",
+      "LIN": "https://lineascan.build",
+      "ETH": "https://etherscan.io",
+      "POL": "https://polygonscan.com",
+      "SOL": "https://solscan.io"
+    };
+
+    // ── helpers ───────────────────────────────────────────────────
+    function setNftLoading(msg) {
+      nftSection.style.display = "block";
+      const liveBody = nftTable.querySelector("tbody");
+      if (liveBody) {
+        liveBody.innerHTML = `<tr><td colspan="9"><div style="display:flex;justify-content:center;padding:24px;">
+          <span class="loader"></span>&nbsp;${msg}</div></td></tr>`;
+      }
+      nftRecordCount.style.display = "none";
+      nftExportBtn.style.display = "none";
+    }
+
+    function setNftEmpty(text) {
+      const liveBody = nftTable.querySelector("tbody");
+      if (liveBody) {
+        liveBody.innerHTML = `<tr><td colspan="9"><div style="display:flex;justify-content:center;padding:24px;">
+          <span>${text}</span></div></td></tr>`;
+      }
+      nftRecordCount.style.display = "none";
+      nftExportBtn.style.display = "none";
+    }
+
+    // ── main search handler ───────────────────────────────────────
+    btnNftSearch.addEventListener("click", async () => {
+      const nftId = nftIdInput.value.trim();
+      const chain = nftChainSelect.value.trim() || null;
+      nftMsg.textContent = "";
+
+      if (!nftId) {
+        nftMsg.textContent = "Please enter an NFT ID.";
+        return;
+      }
+
+      // Hide main search results immediately to ensure Single View
+      const mainSection = document.getElementById("main-transaction-section");
+      const mainSummary = document.getElementById("summary");
+      if (mainSection) mainSection.style.display = "none";
+      if (mainSummary) mainSummary.style.display = "none";
+
+      // Cache check: Avoid redundant searches if ID and Chain are the same
+      if (nftId === previousNftId && chain === previousNftChain) {
+        // Just ensure results are visible if they were hidden by a switch back from main search
+        nftSection.style.display = "block";
+        if (nftTransactionList && nftTransactionList.length > 0) {
+          nftSummary.style.display = "block";
+        }
+        // Scroll to results
+        setTimeout(() => {
+          nftSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+        return;
+      }
+
+      setNftLoading("Searching...");
+      nftSummary.style.display = "none";
+
+      try {
+        const body = { nft_id: nftId };
+        if (chain) body.chain = chain;
+
+        const res = await fetch("/api/nft-tx-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setNftEmpty(`Error: ${data.error || "Unknown error"}`);
+          return;
+        }
+
+        const transactions = data.transactions || [];
+        const max_length = data.max_length || 0;
+        const count = data.count || 0;
+
+        // Update cache even if empty results to prevent redundant hammering
+        previousNftId = nftId;
+        previousNftChain = chain;
+        nftTransactionList = transactions;
+
+        if (transactions.length === 0) {
+          setNftEmpty(`No transactions found for NFT ID "${nftId}"${chain ? " on " + chain : ""}.`);
+          return;
+        }
+
+        // Calculate summary (separate_total) for NFT transactions
+        const separate_total = {};
+        transactions.forEach(tx => {
+          const details = tx.details || [];
+          details.forEach(d => {
+            const sym = d.symbol || "Unknown";
+            const amt = parseFloat(d.amount) || 0;
+            if (!separate_total[sym]) {
+              separate_total[sym] = { sent: 0, received: 0, total: 0 };
+            }
+            if (amt < 0) {
+              separate_total[sym].sent += Math.abs(amt);
+            } else {
+              separate_total[sym].received += amt;
+            }
+            separate_total[sym].total += amt;
+          });
+        });
+
+        // Determine chain context for table rendering
+        const hasSol = transactions.some(tx => tx.chain === "SOL");
+        const hasEvm = transactions.some(tx => tx.chain !== "SOL");
+        const isSolOnly = hasSol && !hasEvm;
+        const firstChain = transactions[0].chain || "BAS";
+        const chainCtx = isSolOnly ? ["SOL"] : [firstChain];
+
+        // Build & render table header
+        const header = buildTableHeader(chainCtx, max_length);
+        renderTableHeader(nftTable, header);
+        const nftBodyEl = nftTable.querySelector("tbody");
+        const { body: rowsBody, summary: rowsSummaryToken } = renderTransactionsContent(
+          transactions, chainCtx, transactions[0].wallet || "", max_length, separate_total, "", NFT_URL_SCAN
+        );
+        renderTableBody(nftBodyEl, rowsBody);
+
+        // Render Summary if available
+        if (rowsSummaryToken && rowsSummaryToken.length > 0) {
+          renderTableBody(nftSummaryBody, rowsSummaryToken);
+          nftSummary.style.display = "block";
+        }
+
+        // Update badge
+        nftRecordCount.textContent = `${count} record${count !== 1 ? "s" : ""} found`;
+        nftRecordCount.style.display = "inline-block";
+        nftExportBtn.style.display = "inline-flex";
+
+        // Scroll to results
+        setTimeout(() => {
+          nftSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+
+      } catch (err) {
+        console.error("NFT search error:", err);
+        setNftEmpty("An error occurred. Please try again.");
+      }
+    });
+
+    // Allow Enter key on nftIdInput
+    nftIdInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") btnNftSearch.click();
+    });
+
+    // ── CSV export for NFT search results ───────────────────────
+    nftExportBtn.addEventListener("click", () => {
+      if (!nftTransactionList || nftTransactionList.length === 0) return;
+
+      let maxTokens = 2;
+      nftTransactionList.forEach(tx => {
+        const len = (tx.details || []).length;
+        if (len > maxTokens) maxTokens = len;
+      });
+
+      const headers = ["Index", "Chain", "NFT_ID", "Date", "Wallet", "Hash", "Block"];
+      for (let i = 0; i < maxTokens; i++) {
+        const p = `Token${i + 1}`;
+        headers.push(`${p}_Amount`, `${p}_Name`, `${p}_Wallet`, `${p}_Contract`);
+      }
+
+      const csvEsc = (v) => {
+        if (v === null || v === undefined) return "";
+        const s = String(v);
+        return (s.includes(",") || s.includes('"') || s.includes("\n"))
+          ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+
+      const rows = [headers.join(",")];
+      nftTransactionList.forEach((tx, idx) => {
+        const nft = tx.nft || {};
+        let row = [
+          idx + 1,
+          csvEsc(tx.chain),
+          csvEsc(nft.token_id || ""),
+          csvEsc(tx.tx_time),
+          csvEsc(tx.wallet),
+          csvEsc(tx.hash),
+          csvEsc(tx.block)
+        ];
+        const tokens = tx.details || [];
+        for (let i = 0; i < maxTokens; i++) {
+          if (tokens[i]) {
+            row.push(csvEsc(tokens[i].amount), csvEsc(tokens[i].symbol),
+              csvEsc(tokens[i].wallet), csvEsc(tokens[i].contract));
+          } else {
+            row.push("", "", "", "");
+          }
+        }
+        rows.push(row.join(","));
+      });
+
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `nft_tx_search_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+
+  })();
+
+</script>
+{% endblock %}

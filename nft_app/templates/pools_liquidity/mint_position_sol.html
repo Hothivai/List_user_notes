@@ -1,0 +1,332 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="hero-section">
+    <h1 class="title">
+        <span>💧</span>
+        <span class="gradient-text">Mint Position (SOL)</span>
+    </h1>
+    <p class="subtitle">Add liquidity to Solana pools</p>
+</div>
+
+    <div class="mint">
+        <div class="container">
+            <div class="mint-position">
+                {% if mint_data %}
+                    <h2>{{mint_data['token0_symbol']}} - {{ mint_data['token1_symbol'] }}</h2>
+                    <div class="sub-title">
+                        Current price: {{ "{:,.5f}".format(mint_data['current_price']) }}
+                        {{mint_data['token1_symbol']}} per {{ mint_data['token0_symbol'] }}
+                    </div>
+
+                    <form id="mintForm">
+                        <input type="hidden" name="chain" value="{{ chain }}">
+                        <input type="hidden" name="pool_address" value="{{ pool_address }}">
+                        <input type="hidden" name="token0_decimals" value="{{ mint_data['token0_decimals'] }}">
+                        <input type="hidden" name="token1_decimals" value="{{ mint_data['token1_decimals'] }}">
+                        <input type="hidden" name="current_price" id="current_price" value="{{ mint_data['current_price'] }}">
+
+                        <div class="section">
+                            <!-- Token0 -->
+                            <label for="token0">
+                                Token0 Amount ({{ mint_data['token0_symbol'] }})
+                            </label>
+
+                            <div class="balance-row">
+                                <span id="token0_balance" class="balance-text">Balance: 0</span>
+                                <button type="button" id="token0_max" class="max-btn">MAX</button>
+                            </div>
+
+                            <input id="token0" name="amount0" type="number"
+                                placeholder="Enter amount"
+                                step="0.000000001" required>
+
+
+                            <!-- Token1 -->
+                            <label for="token1">
+                                Token1 Amount ({{ mint_data['token1_symbol'] }})
+                            </label>
+
+                            <div class="balance-row">
+                                <span id="token1_balance" class="balance-text">Balance: 0</span>
+                            </div>
+
+                            <input id="token1" name="amount1" type="number"
+                                placeholder="Auto-calculated"
+                                step="0.000000001" readonly>
+                        </div>
+
+                        <div class="section">
+                            <label>Price range:</label>
+                            <div class="price-range">
+                                <input type="number" id="minPrice" name="min_price" value="{{ min_price }}" placeholder="Min price" step="any">
+                                <span>→</span>
+                                <input type="number" id="maxPrice" name="max_price" value="{{ max_price }}" placeholder="Max price" step="any">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn">Add Liquidity</button>
+                    </form>
+
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
+    <script>
+        window.Buffer = buffer.Buffer; // gắn global
+    </script>
+
+    <script type="module">
+        import { signAndSend, signAndSendTxBase64 } from '/static/js/mint_position_sol.js';
+        
+        function showToast(message, type = "success") {
+            const t = document.getElementById("toast");
+            if (!t) {
+                console.error("❌ Toast element not found!");
+                return;
+            }
+
+            t.innerHTML = message;         // <------ CHO PHÉP HTML
+            t.classList.remove("success", "error");
+            t.classList.add("show", type);
+
+            setTimeout(() => {
+                t.classList.remove("show");
+            }, 3500);
+        }
+        
+        const mintForm = document.getElementById("mintForm");
+        if (!mintForm) {
+            console.error("❌ mintForm not found!");
+        } else {
+            mintForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                
+                const chain = document.querySelector("input[name=chain]").value;
+                const pool_address = document.querySelector("input[name=pool_address]").value;
+                const amount0 = parseFloat(document.querySelector("input[name=amount0]").value);
+                const amount1 = parseFloat(document.querySelector("input[name=amount1]").value);
+                const min_pct = parseFloat(document.querySelector("input[name=min_price]").value);
+                const max_pct = parseFloat(document.querySelector("input[name=max_price]").value);
+                const token0_decimals = document.querySelector("input[name=token0_decimals]").value;
+                const token1_decimals = document.querySelector("input[name=token1_decimals]").value;
+                
+                let user;
+                // 1️⃣ Bắt trường hợp user reject connect wallet
+                try {
+                    console.log("🔌 Connecting wallet...");
+                    const resp = await window.solana.connect();
+                    console.log("🔌 connect() resp:", resp);
+                    user = resp.publicKey.toString();
+                    console.log("👤 User:", user);
+                } catch (err) {
+                    console.error("❌ Wallet connect error:", err);
+
+                    // Phantom / wallet chuẩn hay trả code 4001 khi user reject
+                    if (err?.code === 4001 || err?.message?.toLowerCase().includes("reject")) {
+                        return showToast("❌ You rejected wallet connection", "error");
+                    }
+
+                    return showToast("❌ Wallet connection failed", "error");
+                }
+
+                try {
+                    console.log("🔄 Fetching mint params...");
+                    
+                    const url = `/get_mint_params?chain=${chain}&pool_address=${pool_address}`
+                        + `&min_price=${min_pct}&max_price=${max_pct}`
+                        + `&amount0=${amount0}&amount1=${amount1}`
+                        + `&token0_decimals=${token0_decimals}&token1_decimals=${token1_decimals}`
+                        + `&payer=${user}`;
+
+                    console.log("🌐 Request URL:", url);
+
+                    const res = await fetch(url);
+                    const results = await res.json();
+                    
+                    console.log("📦 Backend response:", results);
+
+                    if (!results.tx_base64) {
+                        throw new Error("Backend response missing required fields");
+                    }
+
+                    console.log("✍️ Starting signing process...");
+                    let txid;
+                    try {
+                        // txid = await signAndSend(results.msg_base64, results.position_nft_mint_secret);
+                        txid = await signAndSendTxBase64(results.tx_base64);
+                    } catch (err) {
+                        console.error("❌ signAndSend error:", err);
+
+                        // 2️⃣ Bắt user reject ký transaction tại đây
+                        if (err?.code === 4001 || err?.message?.toLowerCase().includes("reject")) {
+                            return showToast("❌ You rejected the transaction", "error");
+                        }
+
+                        throw err; // ném lại để xuống catch ngoài xử lý chung
+                    }
+
+                    // Nếu signAndSend không throw nhưng trả về falsy khi user cancel
+                    if (!txid) {
+                        console.warn("⚠️ No txid returned (maybe user canceled signing?)");
+                        return showToast("❌ Transaction was rejected", "error");
+                    }
+
+                    console.log("✅ SUCCESS! TXID:", txid);
+                    console.log("🔗 https://solscan.io/tx/" + txid);
+
+                    showToast(
+                        `✅ Mint successful! 
+                        <br>
+                        <span>View transaction on Solscan:  
+                            <a href="https://solscan.io/tx/${txid}" target="_blank">
+                                ${txid.slice(0, 8) + "..." + txid.slice(-8)}
+                            </a>
+                        </span>`,
+                        "success"
+                    );
+
+                } catch (err) {
+                    console.error("❌ Mint flow error:", err);
+                    showToast("❌ Mint failed: " + (err?.message || "Unknown error"), "error");
+                }
+            });
+        }
+    </script>
+
+    <script type="module">
+        import { getTokenBalance } from '/static/js/mint_position_sol.js';
+
+        const SOL_BUFFER = 0.03;
+        const SOL_MINT = "So11111111111111111111111111111111111111112";
+        document.addEventListener("DOMContentLoaded", function() {
+            const amount0Input = document.getElementById("token0");
+            const amount1Input = document.getElementById("token1");
+            const minPriceInput = document.getElementById("minPrice");
+            const maxPriceInput = document.getElementById("maxPrice");
+            const currentPrice = document.getElementById("current_price");
+            const submitBtn = document.querySelector(".submit-btn");
+            const token0_balance = document.getElementById("token0_balance");
+            const token1_balance = document.getElementById("token1_balance"); 
+            const token0_account = "{{ mint_data.token0_address }}";
+            const token1_account = "{{ mint_data.token1_address }}";
+
+            let token0_bal = 0;
+            let token1_bal = 0;
+
+            function sqrt(x) {
+                return Math.sqrt(parseFloat(x));
+            }
+
+            function calcAmount1() {
+                let amount0 = parseFloat(amount0Input.value);
+                let Pl = parseFloat(minPriceInput.value);
+                let Pu = parseFloat(maxPriceInput.value);
+                let Pc = parseFloat(currentPrice.value);
+
+                if (!amount0 || !Pl || !Pu || !Pc) {
+                    return;
+                }
+
+                const sqrtPl = sqrt(Pl);
+                const sqrtPu = sqrt(Pu);
+                const sqrtPc = sqrt(Pc);
+
+                // CASE 1: Pc <= Pl → position is 100% token0
+                if (sqrtPc <= sqrtPl) {
+                    amount1Input.value = 0;
+                    return;
+                }
+
+                // CASE 2: Pc >= Pu → cannot mint using token0 only
+                if (sqrtPc >= sqrtPu) {
+                    amount1Input.value = "0 (Price > max range)";
+                    return;
+                }
+
+                // CASE 3: Pl < Pc < Pu → mixed liquidity
+                // Liquidity from amount0
+                const L = amount0 / (1/sqrtPc - 1/sqrtPu);
+
+                // amount1 needed
+                const amount1 = L * (sqrtPc - sqrtPl);
+
+                amount1Input.value = amount1.toFixed(6);
+            }
+
+            function validateForm() {
+                let valid = true;
+
+                const amount0 = Number(amount0Input.value);
+                const amount1 = Number(amount1Input.value);
+
+                // Kiểm tra amount >= 0
+                if (!amount0 || amount0 <= 0) valid = false;
+                if (!amount1 || amount1 <= 0) valid = false;
+
+                // Kiểm tra min/max price
+                if (!minPriceInput.value || !maxPriceInput.value) {
+                    valid = false;
+                } else {
+                    if (Number(minPriceInput.value) >= Number(maxPriceInput.value)) {
+                        valid = false;
+                    }
+                }
+
+                // ❗ Kiểm tra balance
+                if (amount0 > token0_bal) valid = false;
+                if (amount1 > token1_bal) valid = false;
+
+                // Cập nhật nút submit
+                submitBtn.disabled = !valid;
+                submitBtn.style.opacity = valid ? "1" : "0.5";
+                submitBtn.style.cursor = valid ? "pointer" : "not-allowed";
+            }
+
+            amount0Input.addEventListener("input", calcAmount1);
+            minPriceInput.addEventListener("input", calcAmount1);
+            maxPriceInput.addEventListener("input", calcAmount1);
+
+            // Gắn event listener
+            amount0Input.addEventListener("input", validateForm);
+            minPriceInput.addEventListener("input", validateForm);
+            maxPriceInput.addEventListener("input", validateForm);
+
+            // Load balance
+            (async () => {
+                token0_bal = Number(await getTokenBalance(token0_account));
+                token1_bal = Number(await getTokenBalance(token1_account));
+
+                token0_balance.innerHTML = token0_bal;
+                token1_balance.innerHTML = token1_bal;
+            })();
+
+            document.getElementById("token0_max").onclick = async () => {
+
+                let maxValue = token0_bal; // luôn dùng balance gốc
+
+                // Nếu là SOL → trừ buffer 1 lần
+                if (token0_account === SOL_MINT) {
+                    maxValue = Math.max(0, token0_bal - SOL_BUFFER);
+                    console.log("Adjusted SOL balance", maxValue);
+                }
+
+                document.getElementById("token0").value = maxValue.toFixed(6);
+
+                calcAmount1();
+                validateForm();
+            };
+
+            // Khóa submit ngay từ đầu
+            validateForm();
+        });
+
+    </script>
+
+
+{% endblock %}

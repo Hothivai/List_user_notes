@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="hero-section">
+    <h1 class="title">
+        <span>👀</span>
+        <span class="gradient-text">NFT Blacklist</span>
+    </h1>
+    <p class="subtitle">Manage blacklisted NFT positions</p>
+</div>
+
+<div class="container">
+    {% if message %}
+        <div id="message-box" style="margin-bottom: 10px;"><strong class="message"> {{ message }} </strong></div>
+    {% else %}
+        <div id="message-box" style="margin-bottom: 10px;"><strong class="message" style="display: none;"> </strong></div>
+    {% endif %}
+    <div style="overflow-x: auto; width: 100%;">
+        <table id="nftTable" class="data-table" style="width: 100%; border-collapse: collapse; min-width: 600px;">
+            <thead>
+                <tr>
+                    <th>Wallet Address</th>
+                    <th>Chain</th>
+                    <th>Dex</th>
+                    <th>NFT ID</th>
+                    <th>NPM Address</th>
+                    <th>Time Created</th>
+                    {% if not nft_id %}
+                        <th>Blacklist</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for nft in nft_blacklist %}
+                    <tr>
+                        <td data-label="Wallet Address"><a href="#" target="_blank">{{ nft.wallet_address }}</a></td>
+                        <td data-label="Chain">{{ nft.chain }}</td>
+                        <td data-label="Dex">{{ nft.type_dex or '' }}</td>
+                        <td data-label="NFT ID"><a href="#" target="_blank">{{ nft.nft_id }}</a></td>
+                        <td data-label="NPM Address">{{ nft.npm_address or '' }}</td>
+                        <td data-label="created_at">{{ nft.created_at }}</td>
+                        {% if not nft_id %}
+                            <td data-label="Blacklist">
+                                <form method="POST" action="{{ url_for('remove_blacklist_route') }}">
+                                    <input type="hidden" name="wallet_address" value="{{ nft.wallet_address }}">
+                                    <input type="hidden" name="chain" value="{{ nft.chain }}">
+                                    <input type="hidden" name="nft_id" value="{{ nft.nft_id }}">
+                                    <input type="hidden" name="type_dex" value="{{ nft.type_dex or '' }}">
+                                    <input type="hidden" name="npm_address" value="{{ nft.npm_address or '' }}">
+                                    <button type="submit" class="btn-toggle" onclick="return confirm('Bạn có chắc chắn muốn xóa {{ nft.nft_id }} thuộc ví: {{ nft.wallet_address }} trên chain: {{ nft.chain }} khỏi blacklist không?')">
+                                        <i class="fa-solid fa-unlock"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

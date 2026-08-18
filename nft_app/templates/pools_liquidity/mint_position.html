@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="hero-section">
+    <h1 class="title">
+        <span>💧</span>
+        <span class="gradient-text">Add Liquidity</span>
+    </h1>
+    <p class="subtitle">Add liquidity to PancakeSwap V3 pools</p>
+</div>
+
+    <div class="mint">
+        <div class="container">
+            <div class="mint-position">
+                {% if mint_data %}
+                    <h2>{{mint_data['token0_symbol']}} - {{ mint_data['token1_symbol'] }}</h2>
+                    <div class="sub-title">
+                        Current price: {{ "{:,.5f}".format(mint_data['current_price']) }}
+                        {{mint_data['token1_symbol']}} per {{ mint_data['token0_symbol'] }}
+                    </div>
+
+                    <form id="mintForm">
+                        <input type="hidden" name="chain" value="{{ chain }}">
+                        <input type="hidden" name="pool_address" value="{{ pool_address }}">
+                        <input type="hidden" name="npm_address" value="{{ mint_data['npm_address'] }}">
+                        <input type="hidden" name="masterchef_address" value="{{ mint_data['masterchef_address'] }}">
+
+                        <div class="section">
+                            <label for="token0">Token0 Amount({{ mint_data['token0_symbol'] }}): </label>
+                            <input id="token0" name="amount0" type="number" 
+                                placeholder="Token0 amount (e.g. 0.01)" 
+                                step="0.0001" 
+                                oninput="recalc()"
+                                required>
+
+                            <label for="token1">Token1 Amount({{ mint_data['token1_symbol'] }}): </label>
+                            <input id="token1" name="amount1" type="number"
+                                placeholder="Token1 amount (auto calculated)"
+                                step="0.0001"
+                                readonly>
+                        </div>
+
+                        <div class="section">
+                            <label>Price range(%):</label>
+                            <div class="price-range">
+                                <input type="number" id="minPct" name="min_pct" placeholder="Min price (%)" value="-10" oninput="recalc()">
+                                <span>→</span>
+                                <input type="number" id="maxPct" name="max_pct" placeholder="Max price (%)" value="10" oninput="recalc()">
+                            </div>
+                            <div class="buttons">
+                                <button type="button" onclick="setRange(10)">10%</button>
+                                <button type="button" onclick="setRange(20)">20%</button>
+                                <button type="button" onclick="setRange(50)">50%</button>
+                                <button type="button" onclick="setRange('full')">Full range</button>
+                            </div>
+                        </div>
+                        
+                        {% if mint_data['alloc_point'] > 0 %}
+                        <div class="section">
+                            <label for="stakeLiquidity">This pool actived farming. Do you want to stake liquidity? </label>
+                            <input type="checkbox" id="stakeLiquidity" name="stake_liquidity" checked> 
+                            <span class="note">If checked, your liquidity will be staked in MasterChef contract.</span>
+                        </div>
+                        {% endif %}
+
+                        <button type="submit" class="submit-btn">Add Liquidity</button>
+                    </form>
+
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script type="module">
+        import { mintPosition } from '/static/js/mint_position.js';
+
+        document.getElementById("mintForm").addEventListener("submit", async (e) => {
+            e.preventDefault(); // ngăn reload
+            // lấy dữ liệu từ input
+            const chain = document.querySelector("input[name=chain]").value;
+            const pool_address = document.querySelector("input[name=pool_address]").value;
+            const amount0 = parseFloat(document.querySelector("input[name=amount0]").value);
+            const min_pct = parseFloat(document.querySelector("input[name=min_pct]").value);
+            const max_pct = parseFloat(document.querySelector("input[name=max_pct]").value);
+            const npm_address = document.querySelector("input[name=npm_address]").value;
+            const masterchef_address = document.querySelector("input[name=masterchef_address]").value;
+            const isStake = document.getElementById("stakeLiquidity").checked;
+            console.log("isStake:", isStake);
+
+            try {
+                // 1️⃣ gọi API backend để tính params
+                const res = await fetch(`/get_mint_params?chain=${chain}&pool_address=${pool_address}&min_pct=${min_pct}&max_pct=${max_pct}&amount0=${amount0}`);
+                const params = await res.json();  // backend trả về params cho mint
+                console.log("Mint params:", params);
+
+                // 2️⃣ gọi hàm mintPosition với params
+                mintPosition(params, npm_address, masterchef_address, isStake);
+
+            } catch (err) {
+                console.error("❌ Lỗi khi mint:", err);
+                alert("Mint thất bại: " + err.message);
+            }
+
+        });
+    </script>
+
+
+    <script>
+        function tickToPrice(tick) {
+            return Math.pow(1.0001, tick);
+        }
+
+        function roundTick(tick, tickSpacing) {
+            let remainder = tick % tickSpacing;
+            if (remainder >= tickSpacing / 2) {
+                return tick + (tickSpacing - remainder);
+            } else {
+                return tick - remainder;
+            }
+        }
+
+        // Làm tròn tick về bội số gần nhất của tickSpacing
+        function roundTick(tick, tickSpacing) {
+            return Math.round(tick / tickSpacing) * tickSpacing;
+        }
+
+        // Tính tickLower từ giá
+        function calcTickLower(lowerPrice, tickSpacing) {
+            const tick = Math.log(lowerPrice) / Math.log(1.0001);
+            return roundTick(tick, tickSpacing);
+        }
+
+        // Tính tickUpper từ giá
+        function calcTickUpper(upperPrice, tickSpacing) {
+            const tick = Math.log(upperPrice) / Math.log(1.0001);
+            return roundTick(tick, tickSpacing);
+        }
+
+        function calculateAmount1(sqrtPriceX96, minPct, maxPct, amount0, tickSpacing, scaleFactor, token0Decimals, token1Decimals) {
+            // Scale amount0 sang đơn vị nhỏ nhất
+            let capital0 = amount0 * Math.pow(10, token0Decimals);
+
+            // Giá hiện tại
+            let priceCurrent = Math.pow((sqrtPriceX96 / Math.pow(2, 96)), 2);
+            
+            // Lower and Upper price
+            let lowerPrice = priceCurrent * (1 + (minPct / 100));
+            let upperPrice = priceCurrent * (1 + (maxPct / 100));
+            console.log(lowerPrice, upperPrice);
+
+            // Tick từ giá
+            let tickLower = calcTickLower(lowerPrice, tickSpacing);
+            let tickUpper = calcTickUpper(upperPrice, tickSpacing);
+            console.log(tickLower, tickUpper);
+
+            // Price raw
+            let minPriceRaw = tickToPrice(tickLower);
+            let maxPriceRaw = tickToPrice(tickUpper);
+
+            // sqrt giá raw
+            let sqrtLower = Math.sqrt(minPriceRaw);
+            let sqrtUpper = Math.sqrt(maxPriceRaw);
+            let sqrtCurrent = Math.sqrt(priceCurrent);
+
+            // Liquidity từ amount0
+            let L = capital0 * (sqrtUpper * sqrtCurrent) / (sqrtUpper - sqrtCurrent);
+
+            // Amount1 (raw, chưa scale)
+            let amount1Raw = L * (sqrtCurrent - sqrtLower);
+
+            // Scale lại về đơn vị chuẩn của token1
+            let amount1 = amount1Raw / Math.pow(10, token1Decimals);
+            return amount1;
+        }
+
+        // Lấy các input
+        const token0Input = document.querySelector("#token0");
+        const token1Input = document.querySelector("#token1");
+        const minPctInput = document.querySelector("#minPct");
+        const maxPctInput = document.querySelector("#maxPct");
+
+        function recalc() {
+            const amount0 = parseFloat(token0Input.value) || 0;
+            const sqrtPriceX96 = {{ mint_data['sqrtPriceX96'] | safe }};
+            const tickSpacing = {{ mint_data['tick_spacing'] | safe }};
+            const scaleFactor = {{ mint_data['scale_factor'] | safe }};
+            const token0Decimals = {{ mint_data['token0_decimals'] | safe }};
+            const token1Decimals = {{ mint_data['token1_decimals'] | safe }};
+
+            const minPct = parseFloat(minPctInput.value) || -10;
+            const maxPct = parseFloat(maxPctInput.value) || 10;
+            console.log(minPct, maxPct);
+
+            // const lowerPrice = priceCurrent * (1 + minPct / 100);
+            // const upperPrice = priceCurrent * (1 + maxPct / 100);
+
+            if (amount0 > 0) {
+                const amount1 = calculateAmount1(sqrtPriceX96, minPct, maxPct, amount0, tickSpacing, scaleFactor, token0Decimals, token1Decimals);
+                token1Input.value = amount1.toFixed(6);
+            } else {
+                token1Input.value = "";
+            }
+        }
+
+        token0Input.addEventListener("input", recalc);
+        minPctInput.addEventListener("input", recalc);
+        maxPctInput.addEventListener("input", recalc);
+
+        function setRange(pct) {
+            if (pct === 'full') {
+                minPctInput.value = -100;
+                maxPctInput.value = 100;
+            } else {
+                minPctInput.value = -pct;
+                maxPctInput.value = pct;
+            }
+            recalc();
+        }
+
+    </script>
+
+{% endblock %}

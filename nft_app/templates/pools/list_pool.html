@@ -1,0 +1,754 @@
+{% extends "layout.html" %}
+
+{% block content %}
+{% macro copy_address(address, href=None) -%}
+    {% set value = address or "" %}
+    <span class="copy-wrap" title="{{ value }}">
+        {% if value and href %}
+            <a href="{{ href }}" target="_blank">{{ value[:6] }}...{{ value[-4:] }}</a>
+        {% elif value %}
+            <span>{{ value[:6] }}...{{ value[-4:] }}</span>
+        {% else %}
+            <span>-</span>
+        {% endif %}
+        {% if value %}
+            <span class="copy-address-full">{{ value }}</span>
+            <button type="button"
+                    class="copy-btn copy-address-btn"
+                    data-copy-value="{{ value }}"
+                    title="Copy address"
+                    aria-label="Copy address">
+                <i class="fa-regular fa-copy"></i>
+                <span class="copy-tooltip">Copied!</span>
+            </button>
+        {% endif %}
+    </span>
+{%- endmacro %}
+
+<style>
+    tr.narrow-bot-row td:first-child {
+        border-left: 4px solid #f59e0b !important;
+        padding-left: calc(9px - 4px);
+    }
+
+    .narrow-bot-badge {
+        /* display: inline-flex; */
+        align-items: center;
+        gap: 4px;
+        margin-top: 5px;
+        padding: 2px 7px;
+        font-size: 0.72rem;
+        color: #92400e;
+        background: #fde68a;
+        border: 1px solid #f59e0b;
+        border-radius: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    body.dark-mode .narrow-bot-badge {
+        color: #fde68a;
+        background: rgba(245, 158, 11, 0.2);
+        border-color: #f59e0b;
+    }
+
+    /* Copy-bot toggle — amber theme, matches narrow-bot accent */
+    .copy-bot-toggle {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 44px;
+        height: 22px;
+        background-color: #cbd5e1;
+        border-radius: 999px;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+
+    .copy-bot-toggle::before {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        background: white;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .copy-bot-toggle:checked {
+        background-color: #f59e0b;
+    }
+
+    .copy-bot-toggle:checked::before {
+        transform: translateX(22px);
+        box-shadow: 0 1px 3px rgba(245, 158, 11, 0.4);
+    }
+
+    .copy-bot-toggle:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    body.dark-mode .copy-bot-toggle {
+        background-color: #475569;
+    }
+
+    body.dark-mode .copy-bot-toggle:checked {
+        background-color: #f59e0b;
+    }
+
+    /* Copy-bot cell layout */
+    td .copy-bot-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .copy-address-full {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    tr.configured-rebalancer-row td:first-child {
+        border-left: 4px solid #3b82f6 !important;
+        padding-left: calc(9px - 4px);
+    }
+
+    tr.configured-rebalancer-risk-row td:first-child {
+        border-left-color: #ef4444 !important;
+    }
+
+    .configured-rebalancer-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #2563eb;
+        background: rgba(59, 130, 246, 0.14);
+        border: 1px solid rgba(59, 130, 246, 0.35);
+        white-space: nowrap;
+        text-decoration: none;
+    }
+
+    .configured-rebalancer-badge.risky {
+        color: #dc2626;
+        background: rgba(239, 68, 68, 0.16);
+        border-color: rgba(239, 68, 68, 0.45);
+    }
+</style>
+
+<div class="hero-section">
+    <h1 class="title">
+        <span>📝</span>
+        <span class="gradient-text">List Pool Farm from PancakeSwap</span>
+    </h1>
+    <p class="subtitle">Monitor farming pools across PancakeSwap V3</p>
+</div>
+
+<div class="container">
+    <!-- Total Cake Per Day Each Chain -->
+    <div class="summary-card">
+        <h2 class="title">🍰 Total Cake Per Day Each Chain</h2>
+        <div class="metric-card">
+            {% if total_cake_per_day_chain %}
+            {% for item in total_cake_per_day_chain %}
+            <div class="chain-item">
+                <strong class="chain-name">{{ item.chain }}: </strong>
+                <span class="chain-value">{{ "{:,.3f}".format(item.total_cake_per_day) }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+            <div class="chain-item">
+                <strong class="chain-name">SOL: </strong>
+                <span class="chain-value">{{ "{:,.3f}".format(total_cake_per_day_sol) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-toolbar" style="margin-top: 30px;">
+        <div class="filter-row-secondary">
+            <div class="filter-group">
+                <label class="filter-label">Rebalancer</label>
+                <a href="{{ url_for('configured_rebalancer_view') }}" class="btn-secondary">
+                    {{ rebalancer_pool_summary.pools_with_jobs }}/{{ rebalancer_pool_summary.total_job_pools }} pools with jobs
+                    {% if rebalancer_pool_summary.active_pools %}
+                    - {{ rebalancer_pool_summary.active_pools }} active
+                    {% endif %}
+                </a>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">📊 Show table</label>
+                <select id="tableViewSelector" class="form-control filter-input-large">
+                    <option value="all">All Tables</option>
+                    <option value="evm">EVM Pools</option>
+                    <option value="sol">Solana Pools</option>
+                </select>
+            </div>
+            <div class="filter-group" style="flex: 1;">
+                <label class="filter-label"><i class="fa-solid fa-magnifying-glass"></i> Filter</label>
+                <input type="text" id="tokenFilterPool" placeholder="e.g. CAKE, USDT, WETH" class="filter-input-large">
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter by Chain -->
+    <!-- <div class="actions-group filter" style="margin-top: 30px;">
+        <label for="chainFilter">🌊 Filter by Chain:</label>
+        <select id="chainFilter" class="form-select" style="width:150px;">
+            <option value="">All Chains</option>
+            <option value="BNB">BSC</option>
+            <option value="ETH">ETH</option>
+            <option value="ARB">ARB</option>
+            <option value="LIN">LIN</option>
+            <option value="POL">POL</option>
+            <option value="BAS">BAS</option>
+        </select>
+    </div> -->
+
+    <div id="evm-table-wrapper" style="overflow-x: auto; width: 100%;">
+        {% if pools %}
+        <h2 class="title">🌊 List Pool Farm on EVM</h2>
+        <!-- EVM Pools Table -->
+        <table id="poolTable" class="table table-bordered data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Chain</th>
+                    <th class="col-low">Pool Address</th>
+                    <th class="col-low">Token0 Address</th>
+                    <th class="col-low">Token1 Address</th>
+                    <th>Token0 Symbol</th>
+                    <th>Token1 Symbol</th>
+                    <th>Fee(%)</th>
+                    <th class="col-low">Alloc Point</th>
+                    <th class="col-low">Pid</th>
+                    <th onclick="sortTable(10, this)">Cake Per Day <span class="sort-icon">⇅</span></th>
+                    <th>Total Value Locked($)</th>
+                    <th>Cake 1h(%)</th>
+                    <th>Total Current Liquidity($)</th>
+                    <th onclick="sortTable(14, this)">Total Active Staked Liquidity($) <span class="sort-icon">⇅</span>
+                    </th>
+                    <th>Total Inactive Staked Liquidity($)</th>
+                    <th onclick="sortTable(16, this)">Total (Active + Inactive) Staked Liquidity($) <span
+                            class="sort-icon">⇅</span></th>
+                    <th>Farm APR(%)</th>
+                    <th class="col-low">Track Staked Liquidity?</th>
+                    <th class="col-low">Copy Bot?</th>
+                    <th class="col-low">Rebalancer</th>
+                    <th class="col-low">Time Updated</th>
+                    <th class="col-medium">Pool Chart</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pool in pools %}
+                {% set rebalancer = pool.configured_rebalancer %}
+                <tr class="{{ pool.validation.severity_class }}{% if pool.is_stake_tracked and pool.has_narrow_bot_flag %} narrow-bot-row{% endif %}{% if rebalancer %} configured-rebalancer-row{% endif %}{% if rebalancer and rebalancer.has_risky_job %} configured-rebalancer-risk-row{% endif %}"
+                    title="{{ pool.validation.flags | join('\n') }}{% if pool.is_stake_tracked and pool.has_narrow_bot_flag %}
+⚠️ Narrow Range Bot: {{ pool.narrow_range_count }} position(s) / ${{ '{:,.0f}'.format(pool.narrow_range_tvl_usd or 0) }} USD{% endif %}">
+                    <td data-label="ID">{{ loop.index }}</td>
+                    <td data-label="Chain">{{ pool.chain }}</td>
+                    <td class="col-low" data-label="Pool Address" style="overflow-wrap: break-word;">
+                        {{ copy_address(pool.pool_address, explorers[pool.chain] ~ pool.pool_address) }}
+                    </td>
+                    <td class="col-low" data-label="Token0 Address">{{ copy_address(pool.token0_address) }}</td>
+                    <td class="col-low" data-label="Token1 Address">{{ copy_address(pool.token1_address) }}</td>
+                    <td data-label="Token0 Symbol">{{ pool.token0_symbol }}</td>
+                    <td data-label="Token1 Symbol">{{ pool.token1_symbol }}</td>
+                    <td data-label="Fee">{{ pool.fee/10000 }}</td>
+                    <td class="col-low" data-label="Alloc Point">{{ pool.alloc_point }}</td>
+                    <td class="col-low" data-label="Pid">{{ pool.pid }}</td>
+                    <td class="cake-per-day-highlight {% if 'cake-per-day-highlight' in pool.validation.highlight_cols %}highlight{% endif %}"
+                        data-label="Cake Per Day" data-cake-reward="{{ (pool.cake_per_day) }}">
+                        {{ "{:,.1f}".format(pool.cake_per_day) }}
+                    </td>
+                    <td data-label="Total Value Locked" data-liquidity="{{ (pool.total_value_lock) }}">
+                        {{ "{:,.0f}".format(pool.total_value_lock) }}
+                    </td>
+                    <td class="cake-reward-1h-highlight {% if 'cake-reward-1h-highlight' in pool.validation.highlight_cols %}highlight{% endif %}"
+                        data-label="Cake 1h(%)">
+                        {{ "{:,.2f}".format(pool.cake_reward_1h) }}
+                    </td>
+                    <td class="current-highlight col-medium {% if 'current-highlight' in pool.validation.highlight_cols %}highlight{% endif %}"
+                        data-label="Total Current Liquidity">
+                        {{ "{:,.0f}".format(pool.total_current_liquidity) }}
+                    </td>
+                    <td class="total-active-staked-liquidity-highlight {% if 'total-active-staked-liquidity-highlight' in pool.validation.highlight_cols %}highlight{% endif %}"
+                        data-label="Total Staked Liquidity">
+                        {% if not pool.is_stake_tracked %}
+                        0
+                        {% else %}
+                        {{ "{:,.0f}".format(pool.total_staked_liquidity) }}
+                        {% endif %}
+                    </td>
+                    <td class="col-medium" data-label="Total Inactive Staked Liquidity">
+                        {% if not pool.is_stake_tracked %}
+                        0
+                        {% else %}
+                        {{ "{:,.0f}".format(pool.total_inactive_staked_liquidity) }}
+                        {% endif %}
+                    </td>
+                    <td data-label="Total (Active + Inactive) Staked Liquidity"
+                        data-total-staked-liquidity="{{ (pool.total_inactive_staked_liquidity) }}">
+                        {% if not pool.is_stake_tracked %}
+                        0
+                        {% else %}
+                        {{ "{:,.0f}".format((pool.total_staked_liquidity + pool.total_inactive_staked_liquidity)) }}
+                        {% endif %}
+                    </td>
+                    <td data-label="Farm APR" data-farm-apr="{{ (pool.farm_apr) }}">
+                        {{ "{:,.2f}".format(pool.farm_apr) }}
+                    </td>
+                    <td class="col-low" data-label="Track Staked Liquidity" style="text-align: center;">
+                        <input type="checkbox" class="stake-track-toggle" data-chain="{{ pool.chain }}"
+                            data-pool-address="{{ pool.pool_address }}" {% if pool.is_stake_tracked %}checked{% endif
+                            %}>
+                    </td>
+                    <td class="col-low" data-label="Copy Bot?" style="text-align: center;">
+                        {% if pool.is_stake_tracked and (pool.has_narrow_bot_flag or pool.is_copy_bot_selected) %}
+                        <div class="copy-bot-cell">
+                            <input type="checkbox" class="copy-bot-toggle" data-chain="{{ pool.chain }}"
+                                data-pool-address="{{ pool.pool_address }}"
+                                data-pair="{{ pool.token0_symbol }}/{{ pool.token1_symbol }}" {% if
+                                pool.is_copy_bot_selected %}checked{% endif %}>
+                            {% if pool.has_narrow_bot_flag %}
+                            <div class="narrow-bot-badge">
+                                🤖 {{ pool.narrow_range_count }} pos
+                                / ${{ "{:,.0f}".format(pool.narrow_range_tvl_usd or 0) }}
+                            </div>
+                            {% else %}
+                            <div class="narrow-bot-badge"
+                                style="background:#f1f5f9; color:#64748b; border-color:#94a3b8; font-weight:normal;">
+                                🤖 Copying (No active pos)
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="col-low" data-label="Rebalancer" style="text-align: center;">
+                        {% if rebalancer %}
+                        <a href="{{ url_for('configured_rebalancer_view') }}"
+                            class="configured-rebalancer-badge {% if rebalancer.has_risky_job %}risky{% endif %}"
+                            title="{{ rebalancer.pool_name }} - {{ rebalancer.wallet_count }} wallet(s) - {{ rebalancer.active_job_count }} active / {{ rebalancer.total_job_count }} total jobs{% if rebalancer.latest_updated_at %} - latest {{ rebalancer.latest_updated_at }}{% endif %}">
+                            Rebalance Jobs
+                            {% if rebalancer.active_job_count %}
+                            ({{ rebalancer.active_job_count }})
+                            {% endif %}
+                        </a>
+                        <div style="font-size:0.78rem; color:#94a3b8; margin-top:4px;">
+                            {% if rebalancer.is_multi_wallet %}
+                            {{ rebalancer.wallet_count }} wallets{% if rebalancer.active_wallet_count %} / {{ rebalancer.active_wallet_count }} active{% endif %}
+                            {% else %}
+                            {{ rebalancer.latest_status }}{% if rebalancer.range_label and rebalancer.range_label != "No range" %} / {{ rebalancer.range_label }}{% endif %}
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="col-low" data-label="Time Updated">
+                        {{ pool.timestamp }}
+                    </td>
+                    <td class="col-medium" data-label="Chart">
+                        <button class="btn btn-primary btn-sm"
+                            onclick="openDexChart('{{ pool.chain }}', '{{ pool.pool_address }}')">
+                            View Chart
+                        </button>
+                    </td>
+                    <td data-label="Action">
+                        <div class="btn-group-action">
+                            <a href="{{ url_for('semi_auto_mint_evm_view', chain=pool.chain, pool_address=pool.pool_address) }}"
+                                target="_blank" class="btn btn-primary btn-sm btn-check-range" role="button">Semi-Auto
+                                Mint
+                                EVM</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <div id="sol-table-wrapper" style="overflow-x: auto; width: 100%;">
+        <!-- Solana Pools Section -->
+        {% if pools_sol %}
+        <h2 class="title">🌊 List Pool Farm on Solana</h2>
+        <table id="poolSolTable" class="table table-bordered data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Chain</th>
+                    <th>Pool Account</th>
+                    <th>Token0 Mint</th>
+                    <th>Token1 Mint</th>
+                    <th>Token0 Decimals</th>
+                    <th>Token1 Decimals</th>
+                    <th>Reward State</th>
+                    <th>Open Time</th>
+                    <th>End Time</th>
+                    <th>Fee(%)</th>
+                    <th>Cake Per Day</th>
+                    <th>Cake 1h(%)</th>
+                    <th>Total Current Liquidity($)</th>
+                    <th>Total Active Staked Liquidity($)</th>
+                    <th>Total Inactive Staked Liquidity($)</th>
+                    <th>Total (Active + Inactive) Staked Liquidity($)</th>
+                    <th>Farm Status</th>
+                    <th>Time Updated</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pool in pools_sol %}
+                <tr class="{{ pool.validation.severity_class }}" title="{{ pool.validation.flags | join('\n') }}">
+                    <td>{{ loop.index }}</td>
+                    <td>{{ pool.chain }}</td>
+                    <td>
+                        <a href="{{explorers[pool.chain]}}{{pool.pool_account}}" target="_blank">
+                            {{ pool.pool_account[:6] }}...{{pool.pool_account[-4:]}}
+                        </a>
+                    </td>
+                    <td>{{ pool.token0_mint }}</td>
+                    <td>{{ pool.token1_mint }}</td>
+                    <td>{{ pool.token0_symbol }}</td>
+                    <td>{{ pool.token1_symbol }}</td>
+                    <td>{{ pool.reward_state }}</td>
+                    <td>{{ pool.open_time }}</td>
+                    <td>{{ pool.end_time }}</td>
+                    <td>{{ pool.fee/10000 }}</td>
+                    <td
+                        class="cake-per-day-highlight {% if 'cake-per-day-highlight' in pool.validation.highlight_cols %}highlight{% endif %}">
+                        {{ "{:,.1f}".format(pool.weekly_rewards/7) }}
+                    </td>
+                    <td
+                        class="cake-reward-1h-highlight {% if 'cake-reward-1h-highlight' in pool.validation.highlight_cols %}highlight{% endif %}">
+                        {{ "{:,.2f}".format(pool.cake_reward_1h) }}</td>
+                    <td
+                        class="current-highlight {% if 'current-highlight' in pool.validation.highlight_cols %}highlight{% endif %}">
+                        {{ "{:,.0f}".format(pool.total_current_liquidity) }}</td>
+                    <td
+                        class="total-active-staked-liquidity-highlight {% if 'total-active-staked-liquidity-highlight' in pool.validation.highlight_cols %}highlight{% endif %}">
+                        {{ "{:,.0f}".format(pool.total_valid_liquidity)
+                        }}</td>
+                    <td>{{ "{:,.0f}".format(pool.total_inactive_staked_liquidity) }}</td>
+                    <td>{{ "{:,.0f}".format(pool.total_valid_liquidity + pool.total_inactive_staked_liquidity ) }}</td>
+                    {% if pool.reward_state == 2 and pool.open_time <= now and pool.end_time> now %}
+                        <td style="color: green; font-weight: bold;">Active</td>
+                        {% else %}
+                        {# Có thể chia nhỏ case để debug dễ hơn #}
+                        {% if pool.reward_state != 2 %}
+                        <td style="color: gray;">Inactive (State: {{ pool.reward_state }})</td>
+                        {% elif pool.open_time > now %}
+                        <td style="color: orange;">Upcoming</td>
+                        {% else %}
+                        <td style="color: red;">Ended</td>
+                        {% endif %}
+                        {% endif %}
+                        <td>{{ pool.timestamp }}</td>
+                        <td data-label="Action">
+                            <div class="btn-group-action">
+                                <a href="{{ url_for('price_range_pool_sol', pool_id=pool.pool_account) }}"
+                                    target="_blank" class="btn btn-primary btn-sm btn-check-range" role="button">Pool
+                                    Ranges</a>
+                                <a href="{{ url_for('semi_auto_mint_view', pool_address=pool.pool_account) }}"
+                                    target="_blank" class="btn btn-primary btn-sm btn-check-range"
+                                    role="button">Semi-Auto Mint</a>
+                            </div>
+                        </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Dex Chart Modal -->
+<!-- Iframe pools info modal -->
+<div id="dexModal" class="modal" style="display:none; position:fixed; top:0; left:0; 
+    background:rgba(0,0,0,0.6); width:100%; height:100%; z-index:9999;">
+    <div style="width:90%; height:90%; margin:3% auto; background:#334155; padding:10px; border-radius:10px;">
+        <span onclick="closeDexModal()" style="float:right; cursor:pointer; font-size:30px; font-weight: bold;">✖</span>
+
+        <iframe id="dexIframe" width="100%" height="95%" frameborder="0"></iframe>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.stake-track-toggle').forEach(cb => {
+        cb.addEventListener('change', async (e) => {
+            const chain = e.target.dataset.chain;
+            const poolAddress = e.target.dataset.poolAddress;
+            const newState = e.target.checked;
+
+            // 🔹 Hiển thị popup xác nhận
+            const confirmMsg = newState
+                ? `Are you sure want to turn on stake tracking for pool ${poolAddress}?`
+                : `Are you sure want to turn off stake tracking for pool ${poolAddress}?`;
+
+            if (!confirm(confirmMsg)) {
+                // ❌ Người dùng chọn "Hủy" → hoàn tác lại checkbox
+                e.target.checked = !newState;
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/toggle_stake_track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chain: chain, pool_address: poolAddress })
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('❌ ' + result.message);
+                    e.target.checked = !e.target.checked; // rollback nếu lỗi
+                } else {
+                    console.log(`✅ ${chain}:${poolAddress} → ${result.is_stake_tracked}`);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('⚠️ Lỗi khi thay đổi trạng thái tracking');
+                e.target.checked = !e.target.checked; // rollback khi lỗi
+            }
+        });
+    });
+</script>
+
+<script>
+    document.querySelectorAll('.copy-bot-toggle').forEach(cb => {
+        cb.addEventListener('change', async (e) => {
+            const chain = e.target.dataset.chain;
+            const poolAddress = e.target.dataset.poolAddress;
+            const pair = e.target.dataset.pair;
+            const newState = e.target.checked;
+
+            const confirmMsg = newState
+                ? `Select pool ${pair} (${poolAddress.slice(0, 8)}...) for Copy-Bot?`
+                : `Deselect pool ${pair} (${poolAddress.slice(0, 8)}...) from Copy-Bot?`;
+
+            if (!confirm(confirmMsg)) {
+                e.target.checked = !newState;
+                return;
+            }
+
+            // Disable checkbox trong lúc chờ RPC call
+            e.target.disabled = true;
+
+            try {
+                const response = await fetch('/api/toggle_copy_bot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chain: chain, pool_address: poolAddress })
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('❌ ' + result.message);
+                    e.target.checked = !newState;
+                } else {
+                    const action = result.action === 'selected' ? '✅ Selected' : '🚫 Deselected';
+                    const tickInfo = result.tick_current !== undefined ? ` (tick=${result.tick_current})` : '';
+                    console.log(`${action} copy-bot: ${chain}:${poolAddress}${tickInfo}`);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('⚠️ Lỗi khi thay đổi trạng thái Copy Bot');
+                e.target.checked = !newState;
+            } finally {
+                e.target.disabled = false;
+            }
+        });
+    });
+</script>
+
+<script>
+    function copyTextToClipboard(value) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(value);
+        }
+
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        return Promise.resolve();
+    }
+
+    document.querySelectorAll('.copy-address-btn').forEach(copyBtn => {
+        copyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const copyValue = copyBtn.dataset.copyValue || "";
+            if (!copyValue) return;
+
+            copyTextToClipboard(copyValue).then(() => {
+                copyBtn.classList.add("copied");
+                setTimeout(() => copyBtn.classList.remove("copied"), 1200);
+            });
+        });
+    });
+</script>
+
+<script>
+    // Filter by Token name
+    // --- Debounce helper ---
+    function debounce(func, delay) {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), delay);
+        };
+    }
+
+    // --- Cache rows ---
+    let rowCache = [];
+
+    function buildRowCache() {
+        rowCache = []; // reset
+        const tables = document.querySelectorAll('.data-table tbody');
+
+        tables.forEach(table => {
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                rowCache.push({
+                    element: row,
+                    text: row.textContent.toUpperCase() // cache text sẵn
+                });
+            });
+        });
+
+        console.log(`✅ Cached ${rowCache.length} rows for filtering`);
+    }
+
+    // --- Filter function ---
+    function filterRows(filter) {
+        // Tách filter thành mảng các từ khóa, loại bỏ chuỗi trống
+        const tokens = filter
+            .split(/[\s,]+/) // tách bởi khoảng trắng hoặc dấu phẩy
+            .map(t => t.trim())
+            .filter(Boolean);
+
+        rowCache.forEach(({ element, text }) => {
+            // Kiểm tra nếu tất cả các token đều xuất hiện trong dòng
+            const match = tokens.every(token => text.includes(token));
+            element.style.display = match ? '' : 'none';
+        });
+    }
+
+    // --- Setup filter ---
+    const tokenFilter = document.getElementById('tokenFilterPool');
+    if (tokenFilter) {
+        tokenFilter.addEventListener(
+            'keyup',
+            debounce(function (e) {
+                const filter = e.target.value.trim().toUpperCase();
+                filterRows(filter);
+            }, 200)
+        );
+    }
+
+    // --- Build cache lần đầu ---
+    buildRowCache();
+
+    // 👉 Khi bảng refresh (1h/lần) thì gọi lại buildRowCache()
+
+    // --- Table View Selector ---
+    const selector = document.getElementById("tableViewSelector");
+    const evmWrapper = document.getElementById("evm-table-wrapper");
+    const solWrapper = document.getElementById("sol-table-wrapper");
+
+    if (selector) {
+        selector.addEventListener("change", function () {
+            const value = this.value;
+            if (value === "all") {
+                evmWrapper.style.display = "";
+                solWrapper.style.display = "";
+            } else if (value === "evm") {
+                evmWrapper.style.display = "";
+                solWrapper.style.display = "none";
+            } else if (value === "sol") {
+                evmWrapper.style.display = "none";
+                solWrapper.style.display = "";
+            }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const chainFilter = document.getElementById("chainFilter");
+        const table = document.querySelector(".data-table");
+        const tbody = table.tBodies[0];
+        const rows = Array.from(tbody.rows);
+
+        chainFilter.addEventListener("change", function () {
+            const v = this.value.trim();
+            if (!v) {
+                // show all
+                rows.forEach(r => r.style.display = "");
+                return;
+            }
+            const lower = v.toLowerCase();
+            rows.forEach(row => {
+                // cột chain là cột thứ 2 (index 1)
+                const chainCell = row.cells[1];
+                const chainText = chainCell ? chainCell.textContent.trim().toLowerCase() : "";
+                row.style.display = chainText.includes(lower) ? "" : "none";
+            });
+        });
+    });
+
+    // Xử lý validation JavaScript đã được chuyển lên Backend để tối ưu hiệu suất.
+</script>
+
+<script>
+    function openDexChart(chain, poolAddress) {
+        const geckoNetworkMap = {
+            BNB: "bsc",
+            ETH: "eth",
+            ARB: "arbitrum",
+            LIN: "linea",
+            POL: "polygon_pos",
+            BAS: "base",
+            SOL: "solana",
+            MON: "monad",
+        };
+        const network = geckoNetworkMap[chain] || String(chain).toLowerCase();
+        const normalizedPoolAddress = String(poolAddress).startsWith("0x")
+            ? String(poolAddress).toLowerCase()
+            : String(poolAddress);
+        const url = `https://www.geckoterminal.com/${network}/pools/${encodeURIComponent(normalizedPoolAddress)}?embed=1&info=0&swaps=0&light_chart=0&resolution=1h&bg_color=334155`;
+        console.log("Opening GeckoTerminal chart:", url);
+        document.getElementById('dexIframe').src = url;
+        document.getElementById('dexModal').style.display = 'block';
+    }
+
+    function closeDexModal() {
+        document.getElementById('dexIframe').src = "";
+        document.getElementById('dexModal').style.display = 'none';
+    }
+</script>
+
+{% endblock %}

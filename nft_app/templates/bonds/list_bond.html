@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="hero-section">
+    <h1 class="title">
+        <span>📝</span>
+        <span class="gradient-text">Bond Information Management</span>
+    </h1>
+    <p class="subtitle">View and manage bonds from ApeBond</p>
+    <div class="action-buttons-secondary">
+        <a href="{{ url_for('add_bond') }}" class="btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-plus"></i> Add new bond
+        </a>
+        <a href="{{ url_for('update_bonds_from_api') }}" class="btn-secondary" style="text-decoration: none;">
+            <i class="fa-solid fa-rotate"></i> Sync Bonds from ApeBond API
+        </a>
+    </div>
+</div>
+
+<div class="container">
+    <div class="filter-toolbar">
+        <div class="filter-group main-search">
+            <label class="filter-label"><i class="fa-solid fa-magnifying-glass"></i> Filter by Token</label>
+            <input type="text" id="tokenFilter" placeholder="e.g. CAKE, 0x123..."
+                onkeyup="filterTable(this, 'bondTable')" class="filter-input-large">
+        </div>
+    </div>
+
+    <h2 class="title">📜 List Bonds on ApeBond</h2>
+    <table id="bondTable" class="table table-bordered data-table">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0, this)">ID <span class="sort-icon">⇅</span></th>
+                <th onclick="sortTable(1, this)">Chain <span class="sort-icon">⇅</span></th>
+                <th>Contract Address</th>
+                <th onclick="sortTable(3, this)">Token Symbol <span class="sort-icon">⇅</span></th>
+                <th onclick="sortTable(4, this)">Threshold (%) <span class="sort-icon">⇅</span></th>
+                <th onclick="sortTable(5, this)">Status <span class="sort-icon">⇅</span></th>
+                <th style="width: 100px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bond in bonds %}
+            <tr>
+                <td data-label="ID">{{ loop.index }}</td>
+                <td data-label="Chain">
+                    <span class="badge badge-chain badge-chain-{{ bond.chain }}">
+                        {{ bond.chain }}
+                    </span>
+                </td>
+                <td data-label="Contract Address" style="overflow-wrap: break-word;">{{ bond.contract_address }}</td>
+                <td data-label="Token Symbol">{{ bond.token_symbol }}</td>
+                <td data-label="Threshold (%)" data-sort="{{ bond.notify_threshold or '10.00' }}">
+                    <input type="number" step="0.01" class="threshold-input"
+                        value="{{ bond.notify_threshold or '10.00' }}"
+                        onchange="updateThreshold('{{ bond.contract_address }}', this.value, this); this.parentElement.setAttribute('data-sort', this.value);">
+                </td>
+                <td data-label="Status">
+                    <span class="badge badge-{{ bond.status }}">
+                        {{ bond.status|capitalize }}
+                    </span>
+                </td>
+                <td data-label="Action" class="actions">
+                    <div style="display: flex; gap: 8px; justify-content: center;">
+                        <a href="{{ url_for('update_bond', contract_address=bond.contract_address) }}"
+                            class="btn-icon btn-icon-edit" title="Edit">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+
+                        <form method="POST"
+                            action="{{ url_for('delete_bond', contract_address=bond.contract_address) }}"
+                            onsubmit="return confirm('Are you sure you want to delete this bond?');" style="margin: 0;">
+                            <button type="submit" class="btn-icon btn-icon-delete" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function filterTable(input, tableId) {
+        const filter = input.value.toLowerCase().trim();
+        const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+
+        rows.forEach(row => {
+            // Tìm kiếm trong các cột cụ thể để chính xác hơn
+            const symbol = row.querySelector("td[data-label='Token Symbol']")?.textContent.toLowerCase() || "";
+            const address = row.querySelector("td[data-label='Contract Address']")?.textContent.toLowerCase() || "";
+            const chain = row.querySelector("td[data-label='Chain']")?.textContent.toLowerCase() || "";
+
+            if (symbol.includes(filter) || address.includes(filter) || chain.includes(filter)) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    async function updateThreshold(contractAddress, newValue, inputElement) {
+        // Thêm xác nhận để tránh nhầm lẫn
+        const confirmed = confirm(`Bạn có chắc chắn muốn thay đổi ngưỡng thông báo thành ${newValue}% không?`);
+
+        if (!confirmed) {
+            // Nếu hủy, reset lại giá trị cũ (cần lưu giá trị cũ trước đó hoặc reload)
+            // Đơn giản nhất là reload hoặc người dùng tự sửa lại. 
+            // Để chuyên nghiệp hơn, ta nên lưu data-previous-value.
+            inputElement.value = inputElement.getAttribute('data-prev') || inputElement.value;
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/update_bond_threshold', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contract_address: contractAddress,
+                    notify_threshold: parseFloat(newValue)
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                // Hiệu ứng thành công
+                inputElement.classList.add('success');
+                inputElement.setAttribute('data-prev', newValue); // Cập nhật giá trị cũ
+                setTimeout(() => inputElement.classList.remove('success'), 2000);
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error updating threshold:', error);
+            alert('Failed to update threshold. Check console for details.');
+        }
+    }
+
+    // Lưu giá trị ban đầu để reset nếu hủy confirm
+    document.querySelectorAll('.threshold-input').forEach(input => {
+        input.setAttribute('data-prev', input.value);
+    });
+</script>
+{% endblock %}

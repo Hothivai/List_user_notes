@@ -1,0 +1,738 @@
+{% extends "layout.html" %}
+
+{# 1. Macro copy_address (Giống y hệt bên list_pool và list_pool_aerodrome) #}
+{% macro copy_address(address, href=None) -%}
+    {% set value = address or "" %}
+    <span class="copy-wrap" title="{{ value }}">
+        {% if value and href %}
+            <a href="{{ href }}" target="_blank">{{ value[:6] }}...{{ value[-4:] }}</a>
+        {% elif value %}
+            <span>{{ value[:6] }}...{{ value[-4:] }}</span>
+        {% else %}
+            <span>-</span>
+        {% endif %}
+        {% if value %}
+            <span class="copy-address-full">{{ value }}</span>
+            <button type="button"
+                    class="copy-btn copy-address-btn"
+                    data-copy-value="{{ value }}"
+                    title="Copy address"
+                    aria-label="Copy address">
+                <i class="fa-regular fa-copy"></i>
+                <span class="copy-tooltip">Copied!</span>
+            </button>
+        {% endif %}
+    </span>
+{%- endmacro %}
+
+{# 2. Macro format_compact_usd (Định dạng số rút gọn K, M, B, T) #}
+{% macro format_compact_usd(val) -%}
+    {% if val is not none and val > 0 %}
+        {% set num = val | float %}
+        {% if num >= 1000000000000 %}
+            ${{ "{:,.2f}".format(num / 1000000000000) }}T
+        {% elif num >= 1000000000 %}
+            ${{ "{:,.2f}".format(num / 1000000000) }}B
+        {% elif num >= 1000000 %}
+            ${{ "{:,.2f}".format(num / 1000000) }}M
+        {% elif num >= 1000 %}
+            ${{ "{:,.2f}".format(num / 1000) }}K
+        {% else %}
+            ${{ "{:,.2f}".format(num) }}
+        {% endif %}
+    {% else %}
+        <span style="color: #999;">-</span>
+    {% endif %}
+{%- endmacro %}
+
+{% block content %}
+<style>
+    /* Các style riêng cho User Note (Input, Button) để giống layout tổng thể */
+    .note-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+        transition: all 0.3s;
+        box-sizing: border-box;
+    }
+    .note-input:focus {
+        outline: 2px solid #4CAF50;
+        border-color: transparent;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+    }
+    .note-input.locked {
+        background-color: #e2e8f0 !important;
+        color: #475569;
+        cursor: not-allowed;
+        opacity: 0.8;
+        border-color: #cbd5e1;
+    }
+
+    .save-btn {
+    background: #facc15 !important; 
+    color: #1e293b !important;     
+    border: none;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;               /* In đậm chữ cho nổi bật */
+    transition: all 0.3s;
+    white-space: nowrap;
+    }
+    .save-btn:hover {
+        background: #eab308 !important; 
+        transform: scale(1.02);
+    }
+    .save-btn:disabled {
+        background: #94a3b8 !important; /* Màu xám xịt khi bị vô hiệu hóa */
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .edit-btn {
+        background: #facc15 !important;
+        color: #1e293b !important;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.3s;
+        white-space: nowrap;
+    }
+    .edit-btn:hover {
+        background: #eab308 !important;
+        transform: scale(1.02);
+    }
+
+    .status-message {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 999999;
+        padding: 12px 24px;
+        border-radius: 8px;
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        display: none;
+        transition: all 0.3s ease;
+    }
+    .status-message.success {
+        display: block;
+        background: #22c55e !important;
+        color: #ffffff !important;
+        border: 1px solid #16a34a !important;
+    }
+    .status-message.error {
+        display: block;
+        background: #ef4444 !important;
+        color: #ffffff !important;
+        border: 1px solid #dc2626 !important;
+    }
+
+    /* Dark Mode Override cho Note Input */
+    body.dark-mode .note-input {
+        background: #1e293b;
+        color: #e2e8f0;
+        border-color: #475569;
+    }
+    body.dark-mode .note-input.locked {
+        background-color: #1e293b !important;
+        color: #94a3b8;
+        opacity: 0.7;
+        border-color: #475569;
+    }
+    body.dark-mode .status-message.success {
+        background: #1a3a2a;
+        color: #86efac;
+        border-color: #166534;
+    }
+    body.dark-mode .status-message.error {
+        background: #3b1a1a;
+        color: #fca5a5;
+        border-color: #7f1d1d;
+    }
+    .copy-address-full {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+    .variant-select {
+        padding: 6px 24px 6px 10px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        border-radius: 6px !important;
+        background-color: #1e293b !important;
+        color: #facc15 !important;
+        border: 1px solid #475569 !important;
+        cursor: pointer !important;
+        outline: none !important;
+        appearance: auto !important;
+        -webkit-appearance: menulist !important;
+        -moz-appearance: menulist !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        transition: all 0.2s ease !important;
+    }
+    .variant-select:hover, .variant-select:focus {
+        border-color: #facc15 !important;
+        box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.25) !important;
+    }
+
+    /* Multi-level Group Header Styling matching index.html */
+    .data-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+    .group-header th {
+        background-color: var(--bg-color) !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        padding: 10px 14px !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        text-align: center;
+    }
+
+    .group-basic {
+        border-left: 3px solid #3b82f6 !important;
+        color: #60a5fa !important;
+    }
+    .group-market {
+        border-left: 3px solid #10b981 !important;
+        color: #34d399 !important;
+    }
+    .group-note {
+        border-left: 3px solid #f59e0b !important;
+        color: #fbbf24 !important;
+    }
+    .group-action {
+        border-left: 3px solid #8b5cf6 !important;
+        color: #a78bfa !important;
+    }
+
+    /* Group Column Divider borders */
+    .data-table th.group-start-market,
+    .data-table td.group-start-market {
+        border-left: 2px solid rgba(16, 185, 129, 0.3) !important;
+    }
+
+    .data-table th.group-start-note,
+    .data-table td.group-start-note {
+        border-left: 2px solid rgba(245, 158, 11, 0.3) !important;
+    }
+
+    .data-table th.group-start-action,
+    .data-table td.group-start-action {
+        border-left: 2px solid rgba(139, 92, 246, 0.3) !important;
+    }
+</style>
+
+<div class="hero-section">
+    <h1 class="title">
+        <span>📝</span>
+        <span class="gradient-text">List Token with PERPETUAL & User Notes</span>
+    </h1>
+    <p class="subtitle">Active tokens from PancakeSwap, Aerodrome, Solana</p>
+</div>
+
+<div class="container">
+    
+    <div id="statusMessage" class="status-message"></div>
+
+    <!-- Toolbar -->
+    <div class="filter-toolbar" style="margin-top: 30px;">
+        <div class="filter-row-secondary">
+            <div class="filter-group" style="flex: 1;">
+                <label class="filter-label"><i class="fa-solid fa-magnifying-glass"></i> Filter</label>
+                <input type="text" id="tokenFilterPool" placeholder="e.g. CAKE, USDT, WETH" class="filter-input-large">
+            </div>
+        </div>
+    </div>
+
+    <div id="evm-table-wrapper" style="overflow-x: auto; width: 100%;">
+        <h2 class="title">🌊 List Token on EVM & Solana</h2>
+        
+        <!-- Bảng Token -->
+        <table id="poolTable" class="table table-bordered data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr class="group-header">
+                    <th colspan="4" class="group-basic">📋 BASIC INFO</th>
+                    <th colspan="3" class="group-market">📊 MARKET DATA</th>
+                    <th colspan="1" class="group-note">📝 USER NOTE</th>
+                    <th colspan="1" class="group-action">⚡ ACTION</th>
+                </tr>
+                <tr>
+                    <th style="width: 4%; text-align: center;">ID</th>
+                    <th style="width: 6%; text-align: center;">CHAIN</th>
+                    <th style="width: 25%;">CONTRACT ADDRESS</th>
+                    <th style="width: 12%;">SYMBOL</th>
+                    <th class="group-start-market" style="width: 10%; text-align: right;">MC (USD)</th>
+                    <th style="width: 10%; text-align: right;">FDV (USD)</th>
+                    <th style="width: 10%; text-align: center;">PERPETUAL</th>
+                    <th class="group-start-note" style="width: 18%;">USER NOTE</th>
+                    <th class="group-start-action" style="width: 10%; text-align: center;">ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for token in tokens %}
+                <tr data-identifier="{{ token.identifier }}">
+                    <td data-label="ID" style="text-align: center;">{{ loop.index }}</td>
+                    <td data-label="Chain" style="text-align: center;"><span class="chain-badge">{{ token.chain }}</span></td>
+                    <td data-label="Contract Address" class="cell-contract">
+                        {{ copy_address(token.contract_address) }}
+                    </td>
+                    <td data-label="Symbol">
+                        <select class="variant-select" onchange="switchTokenVariant(this)">
+                            {% for v in token.variants %}
+                            <option value="{{ loop.index0 }}"
+                                    data-chain="{{ v.chain }}"
+                                    data-address="{{ v.contract_address }}"
+                                    data-symbol="{{ v.symbol }}"
+                                    data-mc="{{ v.market_cap_formatted }}"
+                                    data-fdv="{{ v.fdv_formatted }}"
+                                    data-perp="{{ v.perpetual }}"
+                                    data-note="{{ v.user_note or '' }}"
+                                    data-note-id="{{ v.note_id or '' }}">
+                                {{ v.symbol }} ({{ v.chain }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td data-label="MC (USD)" class="cell-mc group-start-market" style="text-align: right;">
+                        {{ token.market_cap_formatted }}
+                    </td>
+                    <td data-label="FDV (USD)" class="cell-fdv" style="text-align: right;">
+                        {{ token.fdv_formatted }}
+                    </td>
+                    <td data-label="Perpetual" class="cell-perp" style="text-align: center;">
+                        {% if token.perpetual and token.perpetual != '-' %}
+                            <span class="perpetual-badge">{{ token.perpetual }}</span>
+                        {% else %}
+                            <span style="color: #999;">-</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="User Note" class="group-start-note">
+                        <input type="text" class="note-input {% if token.user_note %}locked{% endif %}"
+                               id="note_{{ token.note_id or token.contract_address }}"
+                               value="{{ token.user_note or '' }}"
+                               placeholder="Enter note..."
+                               data-chain="{{ token.chain }}"
+                               data-address="{{ token.contract_address }}"
+                               data-symbol="{{ token.symbol }}"
+                               data-note-id="{{ token.note_id or '' }}"
+                               {% if token.user_note %}disabled{% endif %}>
+                    </td>
+                    <td data-label="Action" class="group-start-action" style="text-align: center;">
+                        <button class="save-btn {% if token.user_note %}edit-btn{% endif %}"
+                                onclick="{% if token.user_note %}editNote(this){% else %}saveNote(this){% endif %}"
+                                data-chain="{{ token.chain }}"
+                                data-address="{{ token.contract_address }}"
+                                data-symbol="{{ token.symbol }}"
+                                data-note-id="{{ token.note_id or '' }}">
+                            {% if token.user_note %}
+                                ✏️ Edit
+                            {% else %}
+                                💾 Save
+                            {% endif %}
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if tokens|length == 0 %}
+    <p style="text-align: center; color: #999; padding: 50px 0; font-size: 16px;">
+        📭 No token data found.
+    </p>
+    {% endif %}
+</div>
+
+<script>
+function copyTextToClipboard(value) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(value);
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return Promise.resolve();
+}
+
+document.querySelectorAll('.copy-address-btn').forEach(copyBtn => {
+    copyBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const copyValue = copyBtn.dataset.copyValue || "";
+        if (!copyValue) return;
+        copyTextToClipboard(copyValue).then(() => {
+            copyBtn.classList.add("copied");
+            setTimeout(() => copyBtn.classList.remove("copied"), 1200);
+        });
+    });
+});
+
+/* ================= HÀM CHUẨN HÓA SYMBOL (FRONTEND JS & SOL FIX) ================= */
+function getBaseSymbol(symbol) {
+    if (!symbol) return '';
+    let s = String(symbol).replace(/₮/g, 'T').replace(/\x00/g, '').trim().toUpperCase();
+
+    // 1. Phân biệt các đồng BTC như SolvBTC (không nhầm sang SOL)
+    if (s.includes('BTC') || s.includes('SOLV')) {
+        if (s.includes('SOLVBTC') || s.includes('WBTC') || s.includes('BTCB') || s.includes('BTC')) {
+            return 'BTC';
+        }
+    }
+
+    // 2. Gom nhóm SOL chính chủ (SOL, WSOL, JitoSOL, bSOL, mSOL, vSOL, uSOL...)
+    if (s.includes('SOL') && !s.includes('SOLV') && !s.includes('SOLAR')) {
+        return 'SOL';
+    }
+
+    // 3. Gom nhóm ETH & Stablecoins
+    if (s.includes('ETH')) return 'ETH';
+    if (s.includes('USDT') || ['USDT0', 'OUSDT', 'WUSDT'].includes(s)) return 'USDT';
+    if (s.includes('USDC') || ['USDBC', 'AXLUSDC', 'WUSDC'].includes(s)) return 'USDC';
+    if (s.includes('BUSD')) return 'BUSD';
+    if (s.includes('USD')) return 'USD';
+
+    // 3. Giữ nguyên 100% logic gộp cho các token khác (CAKE, WETH, USDT...)
+    const suffixes = ['.E', '.B', ' (OLD)', '.OLD', 'V2', 'V3', 'OLD', '0', '1', '2', 'B', 'E', 'S'];
+    for (let suf of suffixes) {
+        if (s.endsWith(suf) && s.length > suf.length) {
+            let candidate = s.slice(0, -suf.length);
+            if (candidate.length >= 3) { s = candidate; break; }
+        }
+    }
+
+    const prefixes = ['WORMHOLE', 'AXL', 'ST', 'CB', 'WE', 'FX', 'W', 'M', 'V', 'B', 'O', 'C'];
+    for (let p of prefixes) {
+        if (s.startsWith(p) && s.length > p.length) {
+            let candidate = s.slice(p.length);
+            if (candidate.length >= 3) { s = candidate; break; }
+        }
+    }
+
+    return s;
+}
+
+/* ================= SWITCH TOKEN VARIANT (CLIENT SIDE) ================= */
+function switchTokenVariant(selectElem) {
+    const opt = selectElem.options[selectElem.selectedIndex];
+    const row = selectElem.closest('tr');
+    
+    const chain = opt.dataset.chain;
+    const address = opt.dataset.address;
+    const symbol = opt.dataset.symbol;
+    const mc = opt.dataset.mc;
+    const fdv = opt.dataset.fdv;
+    const perp = opt.dataset.perp;
+    const note = opt.dataset.note;
+    const noteId = opt.dataset.noteId;
+
+    // 1. Cập nhật Chain badge
+    const chainBadge = row.querySelector('.chain-badge');
+    if (chainBadge) {
+        chainBadge.textContent = chain;
+    }
+
+    // 2. Cập nhật Contract Address cell
+    const contractCell = row.querySelector('.cell-contract');
+    if (contractCell) {
+        let shortAddr = address ? (address.substring(0, 6) + '...' + address.substring(address.length - 4)) : '-';
+        contractCell.innerHTML = `
+            <span class="copy-wrap" title="${address}">
+                <span>${shortAddr}</span>
+                <span class="copy-address-full">${address}</span>
+                <button type="button" class="copy-btn copy-address-btn" data-copy-value="${address}" title="Copy address" aria-label="Copy address">
+                    <i class="fa-regular fa-copy"></i>
+                    <span class="copy-tooltip">Copied!</span>
+                </button>
+            </span>
+        `;
+        const newCopyBtn = contractCell.querySelector('.copy-address-btn');
+        if (newCopyBtn) {
+            newCopyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                copyTextToClipboard(address).then(() => {
+                    newCopyBtn.classList.add("copied");
+                    setTimeout(() => newCopyBtn.classList.remove("copied"), 1200);
+                });
+            });
+        }
+    }
+
+    // 3. Cập nhật MC & FDV & Perpetual
+    const mcCell = row.querySelector('.cell-mc');
+    if (mcCell) mcCell.textContent = mc || '-';
+
+    const fdvCell = row.querySelector('.cell-fdv');
+    if (fdvCell) fdvCell.textContent = fdv || '-';
+
+    const perpCell = row.querySelector('.cell-perp');
+    if (perpCell) {
+        if (perp && perp !== '-') {
+            perpCell.innerHTML = `<span class="perpetual-badge">${perp}</span>`;
+        } else {
+            perpCell.innerHTML = `<span style="color: #999;">-</span>`;
+        }
+    }
+
+    // 4. Cập nhật User Note Input
+    const input = row.querySelector('.note-input');
+    if (input) {
+        input.value = note || '';
+        input.id = 'note_' + (noteId || address);
+        input.dataset.chain = chain;
+        input.dataset.address = address;
+        input.dataset.symbol = symbol;
+        input.dataset.noteId = noteId || '';
+        if (note) {
+            input.disabled = true;
+            input.classList.add('locked');
+        } else {
+            input.disabled = false;
+            input.classList.remove('locked');
+        }
+    }
+
+    // 5. Cập nhật Action Button
+    const btn = row.querySelector('.save-btn, .edit-btn');
+    if (btn) {
+        btn.dataset.chain = chain;
+        btn.dataset.address = address;
+        btn.dataset.symbol = symbol;
+        btn.dataset.noteId = noteId || '';
+        if (note) {
+            btn.innerHTML = '✏️ Edit';
+            btn.className = 'save-btn edit-btn';
+            btn.onclick = function() { editNote(this); };
+        } else {
+            btn.innerHTML = '💾 Save';
+            btn.className = 'save-btn';
+            btn.onclick = function() { saveNote(this); };
+        }
+    }
+}
+
+/* ================= LOGIC FILTER TABLE ================= */
+function debounce(func, delay) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), delay);
+    };
+}
+let rowCache = [];
+
+function buildRowCache() {
+    rowCache = [];
+    const tables = document.querySelectorAll('.data-table tbody');
+    tables.forEach(table => {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+            rowCache.push({
+                element: row,
+                text: row.textContent.toUpperCase()
+            });
+        });
+    });
+}
+
+function filterRows(filter) {
+    const tokens = filter.split(/[\s,]+/).map(t => t.trim()).filter(Boolean);
+    rowCache.forEach(({ element, text }) => {
+        const match = tokens.every(token => text.includes(token));
+        element.style.display = match ? '' : 'none';
+    });
+}
+
+const tokenFilter = document.getElementById('tokenFilterPool');
+if (tokenFilter) {
+    tokenFilter.addEventListener('keyup', debounce(function (e) {
+        const filter = e.target.value.trim().toUpperCase();
+        filterRows(filter);
+    }, 200));
+}
+buildRowCache();
+
+/* ================= LOGIC NOTE SAVE / EDIT ================= */
+function showStatus(message, type) {
+    const status = document.getElementById('statusMessage');
+    status.textContent = message;
+    status.className = 'status-message ' + type;
+    status.style.display = 'block';
+    setTimeout(() => { status.style.display = 'none'; }, 3000);
+}
+
+function saveNote(btn) {
+    const row = btn.closest('tr');
+    const input = row.querySelector('.note-input');
+    const userNote = input ? input.value.trim() : '';
+
+    // Lấy thông tin token đang được chọn từ dropdown (Primary Token)
+    const select = row.querySelector('.variant-select');
+    let selectedChain = btn.dataset.chain || '';
+    let selectedAddress = btn.dataset.address || '';
+    let selectedSymbol = btn.dataset.symbol || '';
+    let selectedIdentifier = '';
+
+    // Mảng lưu trữ tất cả token biến thể trong nhóm (gồm identifier & symbol)
+    let variants = [];
+
+    if (select) {
+        const opt = select.options[select.selectedIndex];
+        if (opt) {
+            selectedChain = opt.dataset.chain || selectedChain;
+            selectedAddress = opt.dataset.address || selectedAddress;
+            selectedSymbol = opt.dataset.symbol || selectedSymbol;
+        }
+
+        // Thu thập danh sách đối tượng { identifier, symbol } từ các option trong dropdown
+        variants = Array.from(select.options).map(o => {
+            const c = (o.dataset.chain || '').toUpperCase();
+            const a = (o.dataset.address || '').toLowerCase();
+            const sym = o.dataset.symbol || '';
+            return {
+                identifier: `${c}:${a}`,
+                symbol: sym,
+                chain: c,
+                address: a
+            };
+        });
+    }
+
+    if (!selectedChain || !selectedAddress) {
+        showStatus('❌ Token address or chain not found!', 'error');
+        return;
+    }
+
+    selectedIdentifier = `${selectedChain.toUpperCase()}:${selectedAddress.toLowerCase()}`;
+
+    // Đảm bảo selected_identifier có mặt trong variants
+    if (variants.length === 0) {
+        variants.push({
+            identifier: selectedIdentifier,
+            symbol: selectedSymbol,
+            chain: selectedChain.toUpperCase(),
+            address: selectedAddress.toLowerCase()
+        });
+    }
+
+    const originalText = btn.textContent;
+    btn.textContent = '⏳ Saving...';
+    btn.disabled = true;
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + btoa('admin:it.d@2025')
+    };
+
+    const body = JSON.stringify({
+        selected_identifier: selectedIdentifier,
+        selected_chain: selectedChain,
+        selected_address: selectedAddress,
+        selected_symbol: selectedSymbol,
+        user_note: userNote,
+        variants: variants
+    });
+
+    fetch('/api/token-groups/save-all', { method: 'POST', headers: headers, body: body })
+    .then(res => {
+        if (!res.ok) {
+            return res.text().then(text => {
+                throw new Error(`Server lỗi ${res.status}: ${text.substring(0, 80)}...`);
+            });
+        }
+        return res.json();
+    })
+    .then(data => {
+        btn.disabled = false;
+        if (data.success) {
+            showStatus('✅ Saved group mapping & note successfully!', 'success');
+
+            // Cập nhật dataset note nếu note có dữ liệu mới được lưu
+            if (data.note_saved && data.note_id) {
+                btn.dataset.noteId = data.note_id;
+                if (input) input.dataset.noteId = data.note_id;
+                if (select) {
+                    const opt = select.options[select.selectedIndex];
+                    if (opt) {
+                        opt.dataset.note = userNote;
+                        opt.dataset.noteId = data.note_id;
+                    }
+                }
+            }
+
+            if (input && userNote !== '') {
+                input.disabled = true;
+                input.classList.add('locked');
+            }
+
+            if (input && (input.value.trim() !== '' || input.disabled)) {
+                btn.innerHTML = '✏️ Edit';
+                btn.className = 'save-btn edit-btn';
+                btn.onclick = function() { editNote(this); };
+            } else {
+                btn.innerHTML = '💾 Save';
+                btn.className = 'save-btn';
+                btn.onclick = function() { saveNote(this); };
+            }
+        } else {
+            showStatus('❌ Error: ' + (data.message || 'Unknown error'), 'error');
+            btn.textContent = originalText;
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        console.error("Fetch error:", err);
+        showStatus('❌ Lỗi hệ thống: ' + err.message, 'error');
+        btn.textContent = originalText;
+    });
+}
+
+function editNote(btn) {
+    const row = btn.closest('tr');
+    const input = row.querySelector('.note-input');
+    
+    input.disabled = false;
+    input.classList.remove('locked');
+    input.focus();
+    
+    btn.innerHTML = '💾 Save';
+    btn.classList.remove('edit-btn');
+    btn.classList.add('save-btn');
+    btn.onclick = function() { saveNote(this); };
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.note-input').forEach(input => {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !this.disabled) {
+                const btn = this.closest('tr').querySelector('.save-btn, .edit-btn');
+                saveNote(btn);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

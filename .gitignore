@@ -1,0 +1,17 @@
+# Environment
+.env
+
+# Log files
+*.log
+
+# Python compiled files
+*.pyc
+
+# Python cache directories
+__pycache__/
+
+# Folders
+abi_cache/
+abi_cached/
+logs/
+venv/

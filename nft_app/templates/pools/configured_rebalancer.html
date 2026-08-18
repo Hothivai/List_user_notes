@@ -1,0 +1,265 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<style>
+    .rebalancer-page .summary-card {
+        margin-top: 20px;
+    }
+
+    .rebalancer-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        margin-top: 16px;
+    }
+
+    .rebalancer-badge,
+    .rebalancer-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 4px 9px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        white-space: nowrap;
+    }
+
+    .rebalancer-badge {
+        background: rgba(59, 130, 246, 0.14);
+        color: #2563eb;
+        text-decoration: none;
+    }
+
+    .rebalancer-badge-risk {
+        background: rgba(239, 68, 68, 0.16);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .status-planned,
+    .status-swap-pending,
+    .status-withdrawn-unburned,
+    .status-swap-blocked,
+    .status-minted-unstaked {
+        background: rgba(245, 158, 11, 0.16);
+        color: #d97706;
+        border-color: rgba(245, 158, 11, 0.45);
+    }
+
+    .status-recovery-required,
+    .status-failed {
+        background: rgba(239, 68, 68, 0.16);
+        color: #dc2626;
+        border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .status-reminted,
+    .status-burned {
+        background: rgba(16, 185, 129, 0.14);
+        color: #059669;
+        border-color: rgba(16, 185, 129, 0.42);
+    }
+
+    .rebalancer-row-risk td:first-child {
+        border-left: 4px solid #ef4444 !important;
+    }
+
+    .rebalancer-muted {
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+
+    .rebalancer-code {
+        font-family: Consolas, Monaco, monospace;
+        font-size: 0.82rem;
+        word-break: break-word;
+    }
+
+    .rebalancer-warning {
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        color: #d97706;
+        padding: 12px 14px;
+        border-radius: 8px;
+        margin-bottom: 18px;
+        font-weight: 700;
+    }
+
+    .rebalancer-range-title {
+        font-weight: 800;
+        color: var(--text-color);
+        white-space: nowrap;
+    }
+
+    .rebalancer-range-detail {
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: 0.82rem;
+        white-space: nowrap;
+    }
+
+    .rebalancer-tx-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .rebalancer-tx-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        width: fit-content;
+        padding: 3px 7px;
+        border-radius: 6px;
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.28);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .rebalancer-tx-label {
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+    }
+</style>
+
+<div class="rebalancer-page">
+    <div class="hero-section">
+        <h1 class="title">
+            <span class="gradient-text">Configured Rebalancer</span>
+        </h1>
+        <p class="subtitle">Monitor rebalance pools and jobs recorded in configured_rebalance_jobs.</p>
+        <div class="rebalancer-meta">
+            <span class="chain-item"><strong class="chain-name">Pools</strong><span class="chain-value">{{ pool_aggregate_summaries|length }}</span></span>
+            <span class="chain-item"><strong class="chain-name">Pool Wallets</strong><span class="chain-value">{{ pool_summaries|length }}</span></span>
+            <span class="chain-item"><strong class="chain-name">Jobs</strong><span class="chain-value">{{ jobs|length }}</span></span>
+        </div>
+    </div>
+
+    <div class="container">
+        {% if not journal_available %}
+        <div class="rebalancer-warning">No journal data: {{ journal_error or "configured_rebalance_jobs is unavailable" }}</div>
+        {% endif %}
+
+        <div class="summary-card">
+            <h2 class="title">Rebalance Pool Wallets From DB</h2>
+            <div style="overflow-x:auto; width:100%;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Pool</th>
+                            <th>Chain</th>
+                            <th>Pair</th>
+                            <th>Pool Address</th>
+                            <th>Pid</th>
+                            <th>Wallet</th>
+                            <th>Range</th>
+                            <th>Latest Status</th>
+                            <th>Jobs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pool in pool_summaries %}
+                        <tr class="{% if pool.has_risky_job %}rebalancer-row-risk{% endif %}">
+                            <td data-label="Pool"><strong>{{ pool.pool_name }}</strong></td>
+                            <td data-label="Chain">{{ pool.chain }}</td>
+                            <td data-label="Pair">{{ pool.pair }}</td>
+                            <td data-label="Pool Address" class="rebalancer-code">{{ pool.pool_address }}</td>
+                            <td data-label="Pid">{{ pool.db_info.pid if pool.db_info is defined and pool.db_info.pid else "-" }}</td>
+                            <td data-label="Wallet">
+                                <div class="rebalancer-code">{{ pool.wallet_address[:8] }}...{{ pool.wallet_address[-6:] }}</div>
+                            </td>
+                            <td data-label="Range">
+                                <div class="rebalancer-range-title">{{ pool.range_title }}</div>
+                                <div class="rebalancer-range-detail">{{ pool.range_detail }}</div>
+                                {% if pool.range_source == "journal" and pool.range_updated_at %}
+                                <div class="rebalancer-range-detail">from latest job: {{ pool.range_updated_at }}</div>
+                                {% endif %}
+                            </td>
+                            <td data-label="Latest Status">
+                                <span class="rebalancer-status {{ pool.latest_status_class }}">{{ pool.latest_status }}</span>
+                                <div class="rebalancer-range-detail">{{ pool.latest_updated_at }}</div>
+                            </td>
+                            <td data-label="Jobs">
+                                <span class="{% if pool.has_risky_job %}rebalancer-badge rebalancer-badge-risk{% else %}rebalancer-badge{% endif %}">
+                                    {{ pool.active_job_count }} active / {{ pool.total_job_count }} total
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="9">No rebalance pool wallets found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <h2 class="title">Latest Jobs By Pool/Wallet</h2>
+            <div style="overflow-x:auto; width:100%;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Pool</th>
+                            <th>Chain</th>
+                            <th>Wallet</th>
+                            <th>Old NFT</th>
+                            <th>New NFT</th>
+                            <th>Status</th>
+                            <th>Transactions</th>
+                            <th>Recovery/Error</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in latest_jobs %}
+                        <tr class="{% if job.is_effective_risky %}rebalancer-row-risk{% endif %}">
+                            <td data-label="Pool"><strong>{{ job.pool_name }}</strong></td>
+                            <td data-label="Chain">{{ job.chain }}</td>
+                            <td data-label="Wallet" class="rebalancer-code">{{ job.wallet_address[:8] }}...{{ job.wallet_address[-6:] }}</td>
+                            <td data-label="Old NFT">{{ job.old_token_id }}</td>
+                            <td data-label="New NFT">{{ job.new_token_id or "-" }}</td>
+                            <td data-label="Status"><span class="rebalancer-status {{ job.status_class }}">{{ job.status }}</span></td>
+                            <td data-label="Transactions">
+                                {% if job.transactions %}
+                                <div class="rebalancer-tx-list">
+                                    {% for tx in job.transactions %}
+                                    {% if tx.url %}
+                                    <a href="{{ tx.url }}" target="_blank" class="rebalancer-tx-link">
+                                        <span class="rebalancer-tx-label">{{ tx.label }}</span>
+                                        <span>{{ tx.short_hash }}</span>
+                                    </a>
+                                    {% else %}
+                                    <span class="rebalancer-tx-link">
+                                        <span class="rebalancer-tx-label">{{ tx.label }}</span>
+                                        <span>{{ tx.short_hash }}</span>
+                                    </span>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td data-label="Recovery/Error">{{ job.last_recovery_error or job.error_reason or "-" }}</td>
+                            <td data-label="Updated">{{ job.updated_at }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="9">No latest rebalance jobs found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

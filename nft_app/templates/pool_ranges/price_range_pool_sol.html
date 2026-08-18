@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="range-section">
+<div class="hero-section">
+    <h1 class="title">
+        <span>🎯</span>
+        <span class="gradient-text">Price Range Solana Pool Tracker</span>
+    </h1>
+    <p class="subtitle">Analyze price ranges for Solana pool positions</p>
+</div>
+
+    <form method="post" class="form-box">
+        <div class="input-group">
+            <label style="font-size: 18px;">🛠️ Choose AMM:</label>
+            <div class="radio-group">
+                <label class="pill">
+                    <input type="radio" name="amm" value="pancake"
+                        {% if amm == "pancake" or not amm %}checked{% endif %}>
+                    <span>PancakeSwap</span>
+                </label>
+
+                <label class="pill">
+                    <input type="radio" name="amm" value="raydium"
+                        {% if amm == "raydium" %}checked{% endif %}>
+                    <span>Raydium</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="pool_id" style="font-size: 18px;">🔍 Enter Pool Id:</label>
+            <div class="field-inline">
+            <input type="text" name="pool_id" placeholder="Enter Pool Id"
+                    value="{{ pool_id or '' }}" required>
+            <button type="submit">Analyze</button>
+            </div>
+        </div>
+    </form>
+
+    {% if message %}
+        <div id="message-box" style="margin-bottom: 10px;"><strong class="message"> {{ message }} </strong></div>
+    {% else %}
+        <div id="message-box" style="margin-bottom: 10px;"><strong class="message" style="display: none;"> </strong></div>
+    {% endif %}
+
+    {% if pool_ranges %}
+   <div class="result-section">
+    <div class="position-ranges" style="overflow-x: auto;">
+        <h3>👤 Price ranges for {{ amm|capitalize }} pool <code>{{ pool_id }}</code> by Other Person Position</h3>
+        
+        <input type="text" class="search-box" placeholder="🔍 Search by position..." onkeyup="filterTable(this, 'position-table')">
+
+        {% if pool_ranges["token0_symbol"] and pool_ranges["token1_symbol"] %}
+            <h1 class="pool-title">{{ pool_ranges["token0_symbol"] }} - {{ pool_ranges["token1_symbol"] }}</h1>
+        {% endif %}
+
+        <table id="positionTable" class="styled-table">
+            <thead>
+                <tr>
+                    <th>Position Account</th>
+                    <th>NFT Mint</th>
+                    <th>Tick Lower</th>
+                    <th>Tick Upper</th>
+                    <th>Price Lower</th>
+                    <th>Price Upper</th>
+                    <th onclick="sortTable(6, this)">Token0 Amount <span class="sort-icon">⇅</span></th>
+                    <th onclick="sortTable(7, this)">Token1 Amount <span class="sort-icon">⇅</span></th>
+                    <th onclick="sortTable(8, this)">Value $ <span class="sort-icon">⇅</span></th>
+                    <th>Action</th>
+
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in pool_ranges["personal_price_ranges"] %}
+                <tr {% if r.status != "Active" %} class="error-text" {% endif %}>
+                    <td data-label="pubkey"><a href="https://solscan.io/account/{{ r.pubkey}}" target="_blank">{{
+                            r.pubkey[:6] }}...{{ r.pubkey[-6:] }}</a></td>
+                    <td data-label="pubkey"><a href="https://solscan.io/token/{{ r.nft_mint}}" target="_blank">{{
+                            r.nft_mint[:6] }}...{{ r.nft_mint[-6:] }}</a></td>
+                    <td>{{ r.tick_low }}</td>
+                    <td>{{ r.tick_up }}</td>
+                    <td>{{ r.price_low }}</td>
+                    <td>{{ r.price_up }}</td>
+                    <td>
+                        {{ "{:,.2f}".format(r.amount0) }}
+                        <br>
+                        {{ pool_ranges["token0_symbol"] }}
+                    </td>
+                    <td>
+                        {{ "{:,.2f}".format(r.amount1) }}
+                        <br>
+                        {{ pool_ranges["token1_symbol"] }}
+                    </td>
+                    <td>{{ "{:,.2f}".format(r.total_value) }}</td>
+                    <td data-label="Action">
+                        <a href="{{ url_for('mint_position_data', chain='SOL', pool_address=pool_id, min_price=r.price_low, max_price=r.price_up) }}" target="_blank" class="btn btn-primary">Mint</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- <div class="tick-array-ranges" style="overflow-x: auto;">
+        <h3>📊 Price ranges for {{ amm|capitalize }} pool <code>{{ pool_id }}</code> by Tick Array</h3>
+        
+        <input type="text" class="search-box" placeholder="🔍 Search by tick..." onkeyup="filterTable(this, 'tick-table')">
+
+        <table id="tick-table" class="styled-table">
+            <thead>
+                <tr>
+                    <th>Tick Lower</th>
+                    <th>Tick Upper</th>
+                    <th>Price Lower</th>
+                    <th>Price Upper</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in pool_ranges["user_friendly_ranges"] %}
+                <tr>
+                    <td>{{ r.tick_low }}</td>
+                    <td>{{ r.tick_up }}</td>
+                    <td>{{ r.price_low }}</td>
+                    <td>{{ r.price_up }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div> -->
+</div>
+{% endif %}
+</div>
+<script>
+function filterTable(input, tableId) {
+    const filter = input.value.toLowerCase();
+    const rows = document.querySelectorAll(`#positionTable tbody tr`);
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? "" : "none";
+    });
+}
+</script>
+{% endblock %}

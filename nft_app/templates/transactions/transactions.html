@@ -1,0 +1,897 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="hero-section">
+  <h1 class="title">
+    <span>📑</span>
+    <span class="gradient-text">Transaction History</span>
+  </h1>
+  <p class="subtitle">Search and analyze on-chain transaction data</p>
+</div>
+
+  <div class="container">
+    <div class="filter-form">
+      <div class="filter-card">
+        <div class="field field-70">
+          <div class="field-input-wrapper">
+            <label class="field-label" for="wallet-address">Wallet address</label>
+            <input class="field-input" type="text" id="wallet-address" placeholder="Wallet address"/>
+            <span class="error-message" id="wallet-message"></span>
+          </div>
+        </div>
+        <div class="field field-30">
+          <div class="field-input-wrapper">
+            <label class="field-label" for="chain">Chain</label>
+            <div id="chain" class="dropdown">
+              <button class="dropdown-btn">Choosen chain</button>
+              <div class="dropdown-menu">
+                <label><input type="checkbox" name="chain" value="ETH">ETH</label>
+                <label><input type="checkbox" name="chain" value="BAS">BAS</label>
+                <label><input type="checkbox" name="chain" value="BSC">BNB</label>
+                <label><input type="checkbox" name="chain" value="ARB">ARB</label>
+                <label><input type="checkbox" name="chain" value="LIN">LIN</label>
+                <label><input type="checkbox" name="chain" value="POL">POL</label>
+                <label><input type="checkbox" name="chain" value="SOL">SOL</label>
+              </div>
+            </div>
+            <span class="error-message" id="chain-message"></span>
+          </div>
+        </div>
+        <div class="field field-70">
+          <div class="field-flex">
+            <div class="field flex-col">
+              <div class="field-input-wrapper">
+                <label class="field-label" for="date-from">From</label>
+                <input class="field-input" type="date" id="date-from" autocomplete="false"/>
+              </div>
+            </div>
+            <div class="field flex-col">
+              <div class="field-input-wrapper">
+                <label class="field-label" for="date-to">To</label>
+                <input class="field-input" type="date" id="date-to" autocomplete="false"/>
+              </div>
+            </div>
+          </div>
+          <span class="error-message" id="date-message"></span>
+        </div>
+        <div class="field field-30">
+          <div class="field-input-wrapper">
+            <label class="field-label" for="symbol">Token name</label>
+            <input class="field-input" type="text" id="symbol" placeholder="e.g. ETH, SOL" autocomplete="false"/>
+            <span class="error-message" id="symbol-message"></span>
+          </div>
+        </div>
+        <div class="field mb-50">
+          <div class="field field-70">
+            <div class="field-input-wrapper">
+              <label class="field-label" for="contract">Contract address</label>
+              <input class="field-input" type="text" id="contract" placeholder="Contract address (optional)"
+                     autocomplete="false"/>
+              <span class="error-message" id="contract-message"></span>
+            </div>
+          </div>
+          <div class="field field-30 field-submit" style="position: absolute; bottom: 0; right: 0;">
+            <div class="field-input-wrapper">
+              <button id="btn-search" class="btn-search">🔍 Search</button>
+              <span class="error-message"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="overflow-x: auto; width: 100%;">
+      <table id="transaction-table" class="data-table">
+        <thead>
+        <tr id="header-table">
+          <th>Wallet Address</th>
+          <th>Chain</th>
+          <th>Date</th>
+          <th>
+            <table class="child-table-header">
+              <thead>
+              <tr>
+                <th class="cell-amount">Amount</th>
+                <th class="cell-name">Name</th>
+                <th class="cell-wallet">Wallet</th>
+                <th class="cell-contract">Contract</th>
+              </tr>
+              </thead>
+            </table>
+          </th>
+          <th>
+            <table class="child-table-header">
+              <thead>
+              <tr>
+                <th class="cell-amount">Amount</th>
+                <th class="cell-name">Name</th>
+                <th class="cell-wallet">Wallet</th>
+                <th class="cell-contract">Contract</th>
+              </tr>
+              </thead>
+            </table>
+          </th>
+          <th>
+            <table class="child-table-header">
+              <thead>
+              <tr>
+                <th class="cell-wallet">NFT ID</th>
+                <th class="cell-contract">Address</th>
+                <th class="cell-wallet">Wallet</th>
+              </tr>
+              </thead>
+            </table>
+          </th>
+          <th>Hash</th>
+          <th>Block</th>
+        </tr>
+        </thead>
+        <tbody id="b_content">
+
+        </tbody>
+      </table>
+    </div>
+    <div id="summary" style="overflow-x: auto; width: 100%; display: none;">
+      <h2>🔍 Token Transfer Summary</h2>
+      <table id="summary-table" class="data-table">
+        <thead>
+        <tr id="header-table">
+          <th>Symbol</th>
+          <th>Sent</th>
+          <th>Received</th>
+          <th>Total</th>
+        </tr>
+        </thead>
+        <tbody id="summary_content">
+
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      let walletMessage = document.getElementById("wallet-message");
+      let chainMessage = document.getElementById("chain-message");
+      let dateMessage = document.getElementById("date-message");
+      let symbolMessage = document.getElementById("symbol-message");
+      let contractMessage = document.getElementById("contract-message");
+
+      walletMessage.textContent = "";
+      chainMessage.textContent = "";
+      dateMessage.textContent = "";
+      symbolMessage.textContent = "";
+      contractMessage.textContent = "";
+
+      let btnFilter = document.getElementById("btn-search");
+      let table = document.getElementById("transaction-table");
+      let body_content = document.getElementById("b_content");
+      let summary = document.getElementById("summary");
+      let summary_content = document.getElementById("summary_content");
+
+
+      // dropdown chains
+      const dropdownBtn = document.querySelector(".dropdown-btn");
+      const dropdownMenu = document.querySelector(".dropdown-menu");
+      const checkboxes = document.querySelectorAll('.dropdown-menu input[name="chain"]');
+      let chains = [];
+      const evmChains = ["ETH", "BAS", "BSC", "ARB", "LIN", "POL"];
+
+      // cache filter of previous transaction
+      let previousWalletAddress = "";
+      let previousChain = [];
+      let previousFromDate = "";
+      let previousToDate = "";
+      let previousSymbol = "";
+      let previousContract = "";
+
+      const URL_SCAN = {
+        "BAS": "https://basescan.org",
+        "BSC": "https://bscscan.com",
+        "ARB": "https://arbiscan.io",
+        "LIN": "https://lineascan.build",
+        "ETH": "https://etherscan.io",
+        "POL": "https://polygonscan.com",
+        // "SON":"https://sonicscan.org",
+        // "BER":"https://berascan.com",
+        "SOL": "https://solscan.io"
+      }
+      const CHAIN_NAME_PANCAKE = {
+        "BSC": "bsc",
+        "ETH": "eth",
+        "BAS": "base",
+        "ARB": "arb",
+        "LIN": "linea",
+        "POL": "polygon"
+      }
+      const NFT_URL = "https://pancakeswap.finance/liquidity"
+
+      body_content.innerHTML = `
+      <tr>
+        <td colspan="8">
+          <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+            <span>No transaction</span>
+          </div>
+        </td>
+      </tr>
+      `
+
+      function getChains(event) {
+        const changed = event.target;
+        const isChecked = changed.checked;
+        const value = changed.value;
+
+        const solCheckbox = document.querySelector('.dropdown-menu input[value="SOL"]');
+
+        if (isChecked){
+          if (value === "SOL"){
+            evmChains.forEach(chain => {
+              const evmCheckbox = document.querySelector(`.dropdown-menu input[value="${chain}"]`);
+              if (evmCheckbox) {
+                evmCheckbox.checked = false;
+              }
+            });
+          } else if (evmChains.includes(value) && solCheckbox && solCheckbox.checked){
+            solCheckbox.checked = false;
+          }
+        } 
+
+        // Update chains array
+        chains = Array.from(
+          document.querySelectorAll('.dropdown-menu input[name="chain"]:checked')
+        ).map(cb=>cb.value);
+
+        if (chains.length > 0) {
+          dropdownBtn.textContent = chains.join(", ");
+        } else {
+          dropdownBtn.textContent = "Choosen chain";
+        }
+      }
+
+      checkboxes.forEach((cb) => {
+        cb.addEventListener("change", getChains);
+      });
+
+      // Toggle open/close when click
+      function updateDropdownPosition() {
+        if (dropdownMenu.classList.contains("show")) {
+          const rect = dropdownBtn.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceAbove = rect.top;
+
+          if (spaceBelow < dropdownMenu.offsetHeight && spaceAbove > spaceBelow) {
+            dropdownMenu.style.top = "auto";
+            dropdownMenu.style.bottom = "100%";
+          } else {
+            dropdownMenu.style.top = "100%";
+            dropdownMenu.style.bottom = "auto";
+          }
+        }
+      }
+
+      dropdownBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle("show");
+        updateDropdownPosition();
+      });
+
+      // when scroll then update position
+      window.addEventListener("scroll", updateDropdownPosition);
+      window.addEventListener("resize", updateDropdownPosition);
+
+      // close dropdown when user click outside
+      document.addEventListener("click", (e) => {
+        if (!dropdownMenu.contains(e.target) && !dropdownBtn.contains(e.target)) {
+          dropdownMenu.classList.remove("show");
+        }
+      });      
+
+      btnFilter.addEventListener("click", async (event) => {
+        event.preventDefault();
+
+        let headerRow = document.querySelector("#transaction-table thead > tr");
+        let colCount = headerRow.querySelectorAll(":scope > th").length;
+
+        let walletAddress = document.getElementById("wallet-address").value.trim();
+        // let chain = document.getElementById("chain").value.trim();
+        let dateFrom = document.getElementById("date-from").value.trim();
+        let dateTo = document.getElementById("date-to").value.trim();
+        let symbol = document.getElementById("symbol").value.trim();
+        let contract = document.getElementById("contract").value.trim();
+
+        if (previousWalletAddress.toLowerCase() === walletAddress.toLocaleLowerCase() && checkChangedChain(previousChain, chains) && previousFromDate === dateFrom && previousToDate === dateTo && previousSymbol.toLowerCase() === symbol.toLowerCase() && previousContract.toLowerCase() === contract.toLowerCase()) {
+          return;
+        }
+
+        const filters = {
+          walletAddress,
+          chains,
+          dateFrom,
+          dateTo,
+          symbol,
+          contract
+        }
+
+        // save previous filter cache
+        previousWalletAddress = walletAddress;
+        previousChain = chains;
+        previousFromDate = dateFrom;
+        previousToDate = dateTo;
+        previousSymbol = symbol;
+        previousContract = contract;
+
+        // refresh table header
+        let tableHeader = buildTableHeader(chains,0);
+        renderTableHeader(table, tableHeader);
+        body_content = document.getElementById("b_content");
+        headerRow = document.querySelector("#transaction-table thead > tr")
+        let cols = headerRow.querySelectorAll(":scope > th").length;
+        summary_content.innerHTML = "";
+        summary.style.display = "none";
+        const html = `
+          <tr>
+            <td colspan="${cols}">
+              <div id="res-content" style="display:flex;justify-content:center;align-items:center;height:100%;">
+              <span></span>
+              </div>
+            </td>
+          </tr>
+        `;
+
+        body_content.innerHTML = html;
+
+        if (validatorFilters(filters)) {
+          try {
+            // this error because don't get id res-content
+            let res_content = document.getElementById("res-content");
+            res_content.innerHTML = `
+              <span class="loader"></span>
+            `;
+            let res = await fetch("/api/transactions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(filters)
+            });
+            let data = await res.json()
+
+            let data_array = data["transactions"]
+            let max_length = data["max_length"]
+            let separate_total = data["total"];
+
+            // rerender table header
+            tableHeader = buildTableHeader(chains,max_length,);
+            renderTableHeader(table, tableHeader);
+            // get length of table cols
+            headerRow = document.querySelector("#transaction-table thead > tr");
+            res_content = document.getElementById("b_content");
+            let cols = headerRow.querySelectorAll(":scope > th").length;
+
+            if (data_array.length === 0) {              
+              res_content.innerHTML = `
+              <tr>
+                <td colspan="${cols}">
+                  <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                  <span>No transactions</span>
+                  </div>
+                </td>
+              </tr>
+              `;
+              return;
+            }
+
+            // render table body and footer            
+            body_content = document.getElementById("b_content");
+            summary_content.innerHTML = "";
+            summary.style.display = "block";
+            let {body:rowsBodyData, summary:rowsSummaryToken} = renderTransactionsContent(data_array, chains, walletAddress, max_length, separate_total, symbol, URL_SCAN);
+
+            renderTableBody(body_content,rowsBodyData);
+            renderTableBody(summary_content, rowsSummaryToken);
+          } catch (err) {
+            summary.style.display = "none";
+            let cols = headerRow.querySelectorAll(":scope > th").length;
+            body_content.innerHTML = `
+            <tr>
+              <td colspan="${cols}">
+                <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                <span>No transactions</span>
+                </div>
+              </td>
+            </tr>
+            `
+          }
+
+        } else {
+          summary.style.display = "none";
+          body_content.innerHTML = `
+          <tr>
+            <td colspan="${cols}">
+              <div id="res-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+              <span>No transactions</span>
+              </div>
+            </td>
+          </tr>
+          `;
+            // console.log("Not pass")
+        }
+      });
+
+      function validatorFilters(filters) {
+        walletMessage.textContent = "";
+        chainMessage.textContent = "";
+        dateMessage.textContent = "";
+        symbolMessage.textContent = "";
+        contractMessage.textContent = "";
+
+        let isValid = true;
+        // 	validate wallet address
+        if (!filters.walletAddress) {
+          walletMessage.textContent = "Wallet address not null";
+          isValid = false;
+        } else {
+          if (filters.chains[0] === "SOL") {
+            const solRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+            if (!solRegex.test(filters.walletAddress)) {
+              walletMessage.textContent = "Invalid Solana wallet address";
+              isValid = false;
+            } else {
+              walletMessage.textContent = "";
+            }
+          } else if(!/^0x[a-fA-F0-9]{40}$/.test(filters.walletAddress)) {
+            walletMessage.textContent = "Invalid EVM wallet address";
+            isValid = false;
+          }
+        }
+
+        // 	validate chain
+        if (filters.chains.length ===0) {
+          chainMessage.textContent = "Set chain";
+        }
+
+        // 	validate date
+        if (filters.dateFrom && filters.dateTo) {
+          const fromDate = new Date(filters.dateFrom);
+          const toDate = new Date(filters.dateTo);
+          const now = new Date();
+          if (fromDate > toDate) {
+            dateMessage.textContent = "Start date must be less than end date";
+            isValid = false;
+          } else if (fromDate > now || toDate > toDate) {
+            dateMessage.textContent = "Dates must be less than or equal to today";
+            isValid = false;
+          }
+        } else {
+          dateMessage.textContent = "Please select start and end date";
+          isValid = false;
+        }
+
+        // 	validate symbol
+        if (!filters.symbol) {
+          symbolMessage.textContent = "Symbol not selected";
+          isValid = false;
+        } else if (!/^[A-Za-z0-9-]+$/.test(filters.symbol)) {
+          symbolMessage.textContent = "Symbol is not in correct format";
+          isValid = false;
+        }
+
+        //  validate contracts
+        if (filters.contract && !/^0x[a-fA-F0-9]{40}$/.test(filters.contract)) {
+          contractMessage.textContent = "Contract address is incorrect";
+          isValid = false;
+        }
+
+        return isValid;
+    }
+
+  });
+
+    function truncatedAddress(text, startChars = 4, endChars = 4) {
+      if (!text) return '';
+      if (text.length <= (startChars + endChars)) {
+        return text;
+      }
+      return text.slice(0, startChars) + '...' + text.slice(-endChars);
+    }
+
+    function formatedAmount(value) {
+      let parsedValue = parseFloat(value);
+      let result = new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4
+      }).format(parsedValue);
+
+      if (result.includes(",")) {
+        return result.split(".")[0];
+      }
+      return result;
+    }
+    
+    function buildTableHeader(chains, max_length) {
+      const isSol = chains[0] === "SOL";
+
+      // shared-sub columns template
+      const childCells = [
+        {class: "cell-amount", content: "Amount"},
+        {class: "cell-name", content: "Name"},
+        {class: "cell-wallet", content: "Wallet"},
+        {class: "cell-contract", content: "Contract"}
+      ];
+
+      const tableHeader = [
+        {content: "Wallet Address"},
+        {content: "Chain"},
+        {content: "Date"}
+      ];
+
+      // if isSol == true -> add Total column
+      if (isSol){
+        tableHeader.push({
+          content: "Total"
+        });
+      }
+      // add two token transfer
+      tableHeader.push(
+        {content: childCells},
+        {content: childCells}
+      );
+      // add hash and block
+      tableHeader.push(
+        {
+          content: [
+            {class: isSol?"cell-wallet":"cell-nft", content: "NFT ID"},
+            {class: "cell-contract", content: "Contract"},
+            {class: "cell-wallet", content: "Wallet"}
+          ]
+        },
+        {content: "Hash"},
+        {content: "Block"}
+      );
+      // if max-length>2 -> add token column
+      if (max_length > 2) {
+        for( let i = 0; i < max_length - 2; i++) {
+          tableHeader.push({
+            content: childCells
+          });
+        }
+      }
+      return tableHeader;
+    }
+
+    function renderTableHeader(tableElement, headerData) {
+      tableElement.innerHTML = "";
+      const thead = document.createElement("thead");
+      const tbody = document.createElement("tbody");
+      const tr = document.createElement("tr");
+      tbody.id = "b_content";
+      tr.id = "header-table";
+      
+      // render table header
+      headerData.forEach((header)=>{
+        const th = document.createElement("th");
+
+        if(Array.isArray(header.content)) {
+          const childTable = document.createElement("table");
+          const childThead = document.createElement("thead");
+          const childTr = document.createElement("tr");
+
+          childTable.className = "child-table-header";
+          childTable.style.position = "relative";
+
+          header.content.forEach((cell) => {
+            const childTh = document.createElement("th");
+            if(cell.class) childTh.className = cell.class;
+            childTh.textContent = cell.content;
+
+            childTr.appendChild(childTh)
+          });
+          childThead.appendChild(childTr);
+          childTable.appendChild(childThead)
+          th.appendChild(childTable);
+        } else {
+          th.textContent = header.content;
+        }
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+
+      tableElement.appendChild(thead);
+      tableElement.appendChild(tbody);
+    }
+
+    function renderTableBody(bodyId ,rowsData) {
+      bodyId.innerHTML = "";
+      rowsData.forEach((rowData) => {
+        let tr = document.createElement("tr");
+        rowData.forEach((cell) => {
+          let td = document.createElement("td");
+          if (cell.label) {
+            td.setAttribute("data-label", cell.label);
+          }
+          if (cell.class) {
+            td.setAttribute("class", cell.class);
+          }
+          if (Array.isArray(cell.content)) {
+            let subTable = document.createElement("table");
+            let subTbody = document.createElement("tbody");
+            subTable.classList.add("child-table");
+            subTable.appendChild(subTbody);
+            renderTableBody(subTbody, [cell.content]);
+            td.appendChild(subTable);
+          } else if (cell.href) {
+            let a = document.createElement("a");
+            a.href = cell.href;
+            a.textContent = cell.content;
+            a.target = "_blank";
+            td.appendChild(a);
+          } else if (cell.content) {
+            if (cell.isHTML) {
+              td.innerHTML = cell.content;
+            } else {
+              td.textContent = cell.content;
+            }
+          } else {
+            td.textContent = "";
+          }
+          tr.appendChild(td);
+        });
+        bodyId.appendChild(tr);
+      });
+    }
+    
+    function renderTransactionsContent(transactions, chains, wallet, max_length, separate_total, symbol, URL_SCAN) {
+      let b_content = [];
+      let summary = [];
+      let isSol = chains[0] === "SOL";
+
+      transactions.forEach((transaction) => {
+        let chain = transaction["chain"];
+        let rows = [
+          {
+            "label": "Wallet Address",
+            "href": isSol? `${URL_SCAN[chain]}/account/${wallet}` : `${URL_SCAN[chain]}/address/${wallet}`,
+            "content": truncatedAddress(wallet,6,4)
+          },
+          {
+            "label": "Chain",
+            "content":transaction["chain"]
+          },
+          {
+            "label":"Date",
+            "content": transaction["tx_time"]
+          }
+        ];
+
+        if(isSol){
+          let formattedTotal = Object.entries(transaction["changed_token"]).map(([symbol, amount])=>`${formatedAmount(amount)} ${symbol}`).join(`<br>`)
+          rows.push({
+            "label":"Total",
+            "class": "no-wrap",
+            "isHTML": true,
+            "content": formattedTotal
+          })
+        }
+
+        let tokens = transaction["details"]||[];
+        let nft = transaction["nft"]||{};
+
+        if (tokens && tokens[0]) {
+          rows.push({
+            "label": "Token 1",
+            "content":[
+              {
+                "label": "Amount",
+                "class": "cell-amount",
+                "content": formatedAmount(tokens[0]["amount"])
+              },
+              {
+                "label": "Name",
+                "class": "cell-name",
+                "content": tokens[0]["symbol"]
+              },
+              {
+                "label": "Wallet",
+                "class": "cell-wallet",
+                "href": isSol ? `${URL_SCAN[chain]}/account/${tokens[0]["wallet"]}` : `${URL_SCAN[chain]}/address/${tokens[0]["wallet"]}`,
+                "content": truncatedAddress(tokens[0]["wallet"]),             
+              },
+              {
+                "label": "Contract",
+                "class": "cell-contract",
+                "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[0]["contract"]}` : `${URL_SCAN[chain]}/address/${tokens[0]["contract"]}`,
+                "content": truncatedAddress(tokens[0]["contract"]),             
+              }
+            ]
+          });
+        } else{
+          rows.push(
+            {
+              "label": "Token 1",
+              "class": "no-data",
+              "content": ""
+            }
+          )
+        }
+        if (tokens && tokens[1]) {
+          rows.push({
+            "label": "Token 2",
+            "content":[
+              {
+                "label": "Amount",
+                "class": "cell-amount",
+                "content": formatedAmount(tokens[1]["amount"])
+              },
+              {
+                "label": "Name",
+                "class": "cell-name",
+                "content": tokens[1]["symbol"]
+              },
+              {
+                "label": "Wallet",
+                "class": "cell-wallet",
+                "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[1]["wallet"]}` : `${URL_SCAN[chain]}/address/${tokens[1]["wallet"]}`,
+                "content": truncatedAddress(tokens[1]["wallet"],6,4),             
+              },
+              {
+                "label": "Contract",
+                "class": "cell-contract",
+                "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[1]["contract"]}` : `${URL_SCAN[chain]}/address/${tokens[1]["contract"]}`,
+                "content": truncatedAddress(tokens[1]["contract"],6,4),             
+              }                
+            ]
+          });
+        } else{
+          rows.push(
+            {
+              "label": "Token 1",
+              "class": "no-data",
+              "content": ""
+            }
+          );
+        }
+
+        // add nft
+        if (nft && Object.keys(nft).length > 0){ 
+          rows.push(
+            {
+              "label": "NFT Details",
+              "content":[
+                {
+                  "label": "NFT ID",
+                  "class": "cell-wallet",
+                  "href": isSol ? `${URL_SCAN["SOL"]}/account/${nft["token_id"]}` : "",
+                  "content": truncatedAddress(nft["token_id"],6,4)
+                },
+                {
+                  "label": "Contract",
+                  "class": "cell-contract",
+                  "href": isSol ? `${URL_SCAN["SOL"]}/account/${nft["contract"]}` : `${URL_SCAN[chain]}/address/${nft["contract"]}`,
+                  "content": truncatedAddress(nft["contract"],6,4)
+                },
+                {
+                  "label": "Wallet",
+                  "class": "cell-wallet",
+                  "href": isSol ? `${URL_SCAN["SOL"]}/account/${nft["wallet"]}` : `${URL_SCAN[chain]}/address/${nft["wallet"]}`,
+                  "content": truncatedAddress(nft["wallet"],6,4)
+                }
+              ]
+            }
+          );
+        } else {
+          rows.push({
+            "label": "NFT Details",
+            "class": "no-data",
+            "content": ""
+          });
+        }
+        // add hash and block
+        rows.push(
+          {
+            "label": "Hash",
+            "href": isSol ? `${URL_SCAN["SOL"]}/tx/${transaction["hash"]}` : `${URL_SCAN[chain]}/tx/${transaction["hash"]}`,
+            "content": truncatedAddress(transaction["hash"],6,4)
+          },
+          {
+            "label": "Block",
+            "href": isSol ? `${URL_SCAN["SOL"]}/block/${transaction["block"]}` : `${URL_SCAN[chain]}/block/${transaction["block"]}`,
+            "content": transaction["block"]
+          }
+        )
+
+        // add extra cell
+        if (max_length > 2) {
+          for (let i = 0; i < max_length - 2; i++) {
+            let index = i+2;
+            if (tokens[index]) {
+              rows.push({
+                "label": `Token ${index+1}`,
+                "content":[
+                  {
+                    "label": "Amount",
+                    "class": "cell-amount",
+                    "content": formatedAmount(tokens[index]["amount"])
+                  },
+                  {
+                    "label": "Name",
+                    "class": "cell-name",
+                    "content": tokens[index]["symbol"]
+                  },
+                  {
+                    "label": "Wallet",
+                    "class": "cell-wallet",
+                    "href": isSol ? `${URL_SCAN[chain]}/account/${tokens[index]["wallet"]}` : `${URL_SCAN[chain]}/address/${tokens[index]["wallet"]}`,
+                    "content": truncatedAddress(tokens[index]["wallet"],6,4),             
+                  },
+                  {
+                    "label": "Contract",
+                    "class": "cell-contract",
+                    "href": isSol ? `${URL_SCAN["SOL"]}/account/${tokens[index]["contract"]}` : `${URL_SCAN[chain]}/address/${tokens[index]["contract"]}`,
+                    "content": truncatedAddress(tokens[index]["contract"],6,4),             
+                  }
+                ]
+              });
+            } else {
+              rows.push(
+                {
+                  "label": "Token 1",
+                  "class": "no-data",
+                  "content": ""
+                }
+              );
+            }
+          }
+        }
+        b_content.push(rows);
+      });
+      
+      const sortedSymbols = Object.keys(separate_total).sort((a,b)=>{
+        if (a.toLowerCase() === symbol.toLowerCase()) return -1;
+        if (b.toLowerCase() === symbol.toLowerCase()) return 1;
+        return a.localeCompare(b);
+      });
+
+      sortedSymbols.forEach((symbol) => {
+        const details = separate_total[symbol];
+        let rows = [
+          {
+            "label":"Token",
+            "content": symbol
+          },
+          {
+            "label": "Sent",          
+            "content": formatedAmount(details["sent"])
+          },
+          {
+            "label": "Received",          
+            "content": formatedAmount(details["received"])
+          },
+          {
+            "label": "Total",          
+            "content": formatedAmount(details["total"])
+          },          
+        ];
+        summary.push(rows);
+      });
+      return {"body": b_content, "summary": summary};
+    }    
+
+    function removeRedudantColumns(n = 0) {
+      let headerRow = document.querySelector("#transaction-table thead > tr");
+      for (let i = 0; i < n; i++) {
+        if (headerRow.lastElementChild) {
+          headerRow.removeChild(headerRow.lastElementChild);
+        }
+      }
+    }
+
+    function checkChangedChain(prev, curr) {
+      if (prev.length !== curr.length) return false;
+
+      const sortedPrev = [...prev].sort();
+      const sortedCurr = [...curr].sort();
+      return sortedPrev.every((val, index) => val === sortedCurr[index]);
+    }
+      
+  </script>
+{% endblock %}

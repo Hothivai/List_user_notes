@@ -1,0 +1,1 @@
+export const SOL_RPC = "https://dawn-blissful-pallet.solana-mainnet.quiknode.pro/a2995d002f97f0eb9165a1d8ce906d2ce626aa85/";

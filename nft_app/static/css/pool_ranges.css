@@ -1,0 +1,119 @@
+.range-section .form-box {
+    margin-bottom: 40px;
+    text-align: center;
+    margin-bottom: 60px;
+    background: var(--bg-form);
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.result-section {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    align-items: flex-start; /* ✅ mỗi box tự cao theo content */
+}
+
+.position-ranges,
+.tick-array-ranges {
+    flex: 1 1 400px;   /* grow = 1, shrink = 1, min-width = 400px */
+    max-width: 100%;
+    padding: 15px;
+    background: var(--bg-container);
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    height: auto; /* auto theo nội dung */
+}
+
+.search-box {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+.radio-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* label chứa input và span */
+.pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* ẩn nhưng vẫn focus-able */
+.pill input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;            /* keep it inside label for keyboard focus */
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* phần hiển thị (pills) */
+.pill span {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid var(--bg-border);
+  border-radius: 999px;   /* pill shape */
+  background: var(--bg-container);
+  transition: all .15s ease;
+  font-size: 14px;
+  color: var(--text-color);
+  user-select: none;
+}
+
+/* hover/focus */
+.pill:hover span {
+  border-color: var(--menu-hover);
+  background: var(--menu-hover);
+}
+
+/* keyboard focus (nếu input được focus khi tab) */
+.pill input:focus + span {
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
+}
+
+/* trạng thái checked */
+.pill input:checked + span {
+  background: var(--bg-menu);   /* màu chọn */
+  color: var(--text-checkbox);         /* màu chữ khi chọn */
+  border-color: var(--bg-menu);
+  transform: translateY(-1px);
+}
+
+.error-text {
+    color: #b00020 !important;
+    font-weight: bold;
+}
+
+.pool-title{
+    text-align: center;
+    margin: 15px;
+}
+
+/* ✅ Responsive */
+@media screen and (max-width: 944px) {
+    .position-ranges,
+    .tick-array-ranges {
+        max-width: 100%;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .position-ranges,
+    .tick-array-ranges {
+        max-width: 100%;
+    }
+}

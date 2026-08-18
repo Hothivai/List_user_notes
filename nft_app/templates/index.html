@@ -1,0 +1,1073 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="hero-section">
+    <h1 class="title">
+        <span>🎯</span>
+        <span class="gradient-text">NFT LP Position Tracker</span>
+    </h1>
+    <p class="subtitle">Track and manage your liquidity positions across multiple chains with ease</p>
+
+    {% if not nft_id %}
+    <form id="addressForm" class="form-nft" onsubmit="resetForm()" method="POST">
+        <div class="search-bar-container">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-wallet search-icon"></i>
+                <input type="text" name="wallet_address" placeholder="Enter wallet address (0x...)"
+                    value="{{ wallet_address or '' }}" onkeydown="return event.key !== 'Enter'" required>
+
+                <div class="chain-select-wrapper">
+                    <select name="chain" required>
+                        <option value="BNB" {% if chain_name=="BNB" %}selected{% endif %}>BSC</option>
+                        <option value="ETH" {% if chain_name=="ETH" %}selected{% endif %}>Ethereum</option>
+                        <option value="BAS" {% if chain_name=="BAS" %}selected{% endif %}>Base</option>
+                        <option value="ARB" {% if chain_name=="ARB" %}selected{% endif %}>Arbitrum</option>
+                        <option value="LIN" {% if chain_name=="LIN" %}selected{% endif %}>Linea</option>
+                        <option value="MON" {% if chain_name=="MON" %}selected{% endif %}>Monad</option>
+                        <option value="SOL" {% if chain_name=="SOL" %}selected{% endif %}>Solana</option>
+                    </select>
+                </div>
+                <button type="submit" name="action" value="fetch_and_store" class="btn-main-search">
+                    <i class="fa-solid fa-magnifying-glass"></i> Search
+                </button>
+            </div>
+        </div>
+
+        <div class="action-buttons-secondary">
+            <button type="submit" name="action" value="filter_only" class="btn-secondary">
+                <i class="fa-solid fa-filter"></i> Filter Wallet Only
+            </button>
+            <button type="submit" name="action" value="filter_by_wallet_and_chain" class="btn-secondary">
+                <i class="fa-solid fa-link"></i> Filter Wallet & Chain
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<!-- 🔒 Binance Key Popup -->
+<!-- <form onsubmit="return false;">
+        <div id="binancePopup" class="popup hidden">
+            <div class="popup-content">
+                <h3>🔑 Add Binance API Keys (Optional)</h3>
+                <label>API Key:</label>
+                <input type="text" id="binanceApiKey" name="binance_api_key" placeholder="Enter Binance API Key">
+
+                <label>Secret Key:</label>
+                <input type="password" id="binanceSecretKey" name="binance_secret_key" placeholder="Enter Binance Secret Key">
+
+                <div class="popup-buttons">
+                <button type="button" id="btnConfirmKeys">Confirm</button>
+                <button type="button" id="btnSkipKeys">Skip</button>
+                </div>
+            </div>
+        </div>
+    </form> -->
+<div class="container main-position-data">
+    {% if message %}
+    <div id="message-box" style="margin-bottom: 10px;"><strong class="message"> {{ message }} </strong></div>
+    {% else %}
+    <div id="message-box" style="margin-bottom: 10px;"><strong class="message" style="display: none;"> </strong></div>
+    {% endif %}
+    {% if nft_data %}
+
+    <div class="filter-toolbar">
+
+        <div class="filter-row-first">
+            <!-- On-Page Quick Filter -->
+            <div class="filter-group main-search">
+                <label class="filter-label"><i class="fa-solid fa-magnifying-glass"></i> Quick Filter (on Page)</label>
+                <input type="text" id="tokenFilter" placeholder="Token name, address or Pool..." class="filter-input-large">
+            </div>
+
+        <!-- DB Token Filter -->
+            <div class="filter-group main-search">
+                <label class="filter-label"><i class="fa-solid fa-database"></i> Filter by Token (from DB)</label>
+                <form method="GET" action="{{ url_for('index') }}" class="db-filter-form">
+                    <input type="text" name="token" placeholder="e.g. CAKE, WBNB" value="{{ token or '' }}"
+                        class="filter-input-large" required>
+                    <button type="submit" class="btn-main-search">Search DB</button>
+                    {% if token %}
+                    <a href="{{ url_for('index') }}" class="btn-secondary">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <div class="filter-row-secondary">
+            <div class="filter-group">
+                <label class="filter-label">📌 Status</label>
+                <div class="checkbox-group">
+                    <label class="custom-checkbox"><input type="checkbox" class="status-filter" value="active"
+                            checked><span class="checkmark">Active</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="status-filter" value="inactive"
+                            checked><span class="checkmark">Inactive</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="status-filter" value="Closed"
+                            checked><span class="checkmark">Closed</span></label>
+                    {% if has_closed %}
+                    <label class="custom-checkbox"><input type="checkbox" class="status-filter" value="Burned"
+                            checked><span class="checkmark">Burned</span></label>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">🌐 Chain</label>
+                <div class="checkbox-group">
+                    <label class="custom-checkbox"><input type="checkbox" class="chain-filter" value="BNB" checked><span
+                            class="checkmark">BSC</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="chain-filter" value="ARB" checked><span
+                            class="checkmark">ARB</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="chain-filter" value="BAS" checked><span
+                            class="checkmark">BASE</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="chain-filter" value="ETH" checked><span
+                            class="checkmark">ETH</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="chain-filter" value="LIN" checked><span
+                            class="checkmark">LINEA</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="chain-filter" value="SOL" checked><span
+                            class="checkmark">SOL</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="chain-filter" value="MON" checked><span
+                            class="checkmark">MON</span></label>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">🏪 DEX</label>
+                <div class="checkbox-group">
+                    <label class="custom-checkbox"><input type="checkbox" class="dex-filter" value="pancakeswap"
+                            checked><span class="checkmark">PancakeSwap</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" class="dex-filter" value="aerodrome"
+                            checked><span class="checkmark">Aerodrome</span></label>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">⚙️ Options</label>
+                <label class="custom-checkbox">
+                    <input type="checkbox" value="0.00%" id="hide-zero-apr">
+                    <span class="checkmark">🚫 Hide 0% APR</span>
+                </label>
+            </div>
+        </div>
+    </div>
+    <div style="overflow-x: auto; width: 100%;">
+        <table id="nftTable" class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr class="group-header">
+                    <th colspan="4" class="group-basic">📋 Basic Info</th>
+                    <th colspan="1" class="group-basic">📅 Date</th>
+                    <th colspan="6" class="group-position">💰 Position Value</th>
+                    <th colspan="6" class="group-fee">📊 Fee & PnL</th>
+                    <th colspan="4" class="group-reward">🌾 Farm Rewards</th>
+                    <th colspan="2" class="group-action">⚡ History</th>
+                    {% if not nft_id %}
+                    <th colspan="2" class="group-basic">🔍 Actions</th>
+                    {% endif %}
+                </tr>
+                <tr>
+                    <th>Wallet Address</th>
+                    <th>Chain</th>
+                    <th>NFT ID</th>
+                    <th>Status</th>
+                    <th class="col-medium" onclick="sortTable(4, this)">Date <span class="sort-icon">⇅</span></th>
+                    <!-- <th>Initial</th> -->
+                    <th class="col-low">Initial $</th>
+                    <th class="col-low">Current</th>
+                    <th onclick="sortTable(7, this)">Current $ <span class="sort-icon">⇅</span></th>
+                    <th class="col-low">Delta</th>
+                    <th class="col-medium" onclick="sortTable(9, this)">Delta $ <span class="sort-icon">⇅</span></th>
+                    <th class="col-medium">Delta %</th>
+                    <th class="col-low">Fee</th>
+                    <th class="col-low price-deviation-header">
+                        <span>Price Deviation</span><br>
+                        <span>%</span>
+                    </th>
+                    <th class="col-medium" onclick="sortTable(13, this)">Fee $ <span class="sort-icon">⇅</span></th>
+                    <th onclick="sortTable(14, this)">PnL <span class="sort-icon">⇅</span></th>
+                    <th class="col-low" onclick="sortTable(15, this)">Fee APR % <span class="sort-icon">⇅</span></th>
+                    <th onclick="sortTable(16, this)">Fee APR 1h % <span class="sort-icon">⇅</span></th>
+                    <th class="col-medium" onclick="sortTable(17, this)">Pending Rewards <span class="sort-icon">⇅</span></th>
+                    <th class="col-medium" onclick="sortTable(18, this)">Reward 1h % <span class="sort-icon">⇅</span></th>
+                    <!-- <th>Boost</th> -->
+                    <th onclick="sortTable(19, this)">Farm APR 1h % <span class="sort-icon">⇅</span></th>
+                    <th class="col-medium" onclick="sortTable(20, this)">Farm APR All % <span class="sort-icon">⇅</span></th>
+                    <th style="display:none;">Dex Type</th>
+                    <th class="col-low">Time Created</th>
+                    {% if not nft_id %}
+                    <th class="col-medium">History</th>
+                    <th class="col-medium">Blacklist</th>
+                    {% endif %}
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nft in nft_data %}
+
+                {# 1. Tài sản đang nằm trong Pool (Giá trị thả nổi theo thị trường hiện tại) #}
+                {% set floating_assets = nft.current_total_value + nft.total_unclaimed_fee + (nft.pending_cake *
+                nft.reward_price) %}
+
+                {# 2. Lợi nhuận đã bỏ túi (Sử dụng giá trị USD đã chốt tại thời điểm Claim trong DB) #}
+                {# Cách này giúp realized_profit không bị nhảy khi giá token biến động sau khi đã rút #}
+                {% set realized_profit = nft.total_claimed_fee_usd + nft.total_claimed_reward_usd %}
+
+                {# 3. Tính PnL ròng #}
+                {% set net_pnl = floating_assets + realized_profit - nft.total_cash_injected %}
+
+                {# 3. Tính PnL ròng theo token base #}
+                {% set pnl_value_base = nft.pnl_value_base %}
+
+                {# 3. Tính PnL ròng theo token usd #}
+                {% set pnl_value_usd = nft.pnl_value_usd %}
+
+                {# 3. Base Symbol #}
+                {% set base_symbol = nft.base_symbol %}
+
+                {# 4. Tính ROI (%) #}
+                {% if nft.total_cash_injected > 0 %}
+                {% set roi = (net_pnl / nft.total_cash_injected) * 100 %}
+                {% else %}
+                {% set roi = 0 %}
+                {% endif %}
+                {% set rebalancer = nft.configured_rebalancer %}
+
+                <tr data-nft-id="{{ nft.nft_id }}"
+                    data-npm-address="{{ nft.npm_address|default('') }}"
+                    class="{% if nft.has_invalid_price %}error-text{% endif %}{% if rebalancer and rebalancer.is_configured_pool %} rebalancer-position-row{% endif %}{% if rebalancer and rebalancer.is_risky %} rebalancer-risky-row{% endif %}"
+                    {% if rebalancer %}title="Configured rebalancer: {{ rebalancer.pool_name }}{% if rebalancer.status %} | {{ rebalancer.status }}{% endif %}{% if rebalancer.old_token_id %} | job old NFT {{ rebalancer.old_token_id }}{% endif %}{% if rebalancer.match_source == 'pool_wallet' %} | highlighted current visible position for the same wallet/pool{% endif %}{% if rebalancer.error_reason %} | {{ rebalancer.error_reason }}{% endif %}"{% endif %}
+                    data-search="{{ nft.wallet_address }} {{ nft.chain }} {{ nft.nft_id }} {{ nft.npm_address|default('') }} {{ nft.token0_symbol }} {{ nft.token1_symbol }} {{ nft.status }}">
+                    <td data-label="Wallet Address"><a href="{{ nft.wallet_url }}" target="_blank">{{
+                            nft.wallet_address[:6] }}...{{ nft.wallet_address[-4:] }}</a></td>
+                    <td data-label="Chain">{{ nft.chain }}</td>
+                    <td data-label="NFT ID">
+                        {% if nft.chain == "SOL" %}
+                        <span class="copy-wrap">
+                            <a href="{{ nft.nft_id_url }}" target="_blank" style="font-weight: bold; color: #14f195;">
+                                {{ nft.nft_id[:4] }}...{{ nft.nft_id[-4:] }}
+                            </a>
+                            <button type="button" class="copy-btn copy-nft-id-btn" data-copy-value="{{ nft.nft_id }}"
+                                title="Copy NFT ID">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                <span class="copy-tooltip">Copied!</span>
+                            </button>
+                        </span>
+                        <br>
+                        <span style="font-size: 0.85em; color: #ccc;">
+                            {{ (nft.fee_sol/10000) }}%; {{ "{:,.1f}".format(nft.weekly_rewards/7) }} CAKE
+                        </span>
+
+                        {% elif nft.type_dex == "aerodrome" %}
+                        <span class="copy-wrap">
+                            <a href="{{ nft.nft_id_url }}" target="_blank" style="font-weight: bold; color: #0052ff;">
+                                {{ nft.nft_id }}
+                            </a>
+                            <button type="button" class="copy-btn copy-nft-id-btn" data-copy-value="{{ nft.nft_id }}"
+                                title="Copy NFT ID">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                <span class="copy-tooltip">Copied!</span>
+                            </button>
+                        </span>
+                        <br>
+                        <span style="font-size: 0.85em; color: #ccc;">
+                            {{ (nft.tick_spacing_aero) }}; {{ "{:,.1f}".format((nft.reward_per_day_aero/10**18)) }} AERO
+                        </span>
+
+                        {% else %}
+                        <span class="copy-wrap">
+                            <a href="{{ nft.nft_id_url }}" target="_blank" style="font-weight: bold; color: #1fc7d4;">
+                                {{ nft.nft_id }}
+                            </a>
+                            <button type="button" class="copy-btn copy-nft-id-btn" data-copy-value="{{ nft.nft_id }}"
+                                title="Copy NFT ID">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                <span class="copy-tooltip">Copied!</span>
+                            </button>
+                        </span>
+                        <br>
+                        <span style="font-size: 0.85em; color: #ccc;">
+                            {{ (nft.fee_evm/10000) }}%; {{ nft.alloc_point_evm }}; {{
+                            "{:,.1f}".format(nft.cake_per_day_evm) }} CAKE
+                        </span>
+                        {% endif %}
+                        {% if rebalancer and rebalancer.is_configured_pool %}
+                        <br>
+                        <a href="{{ url_for('configured_rebalancer_view') }}"
+                            class="rebalancer-position-badge {{ rebalancer.badge_class }}"
+                            title="{{ rebalancer.pool_name }}{% if rebalancer.status %} - {{ rebalancer.status }}{% endif %}">
+                            Rebalancer{% if rebalancer.status and rebalancer.status != "MONITORED" %}: {{ rebalancer.status }}{% endif %}
+                            {% if rebalancer.match_source == 'pool_wallet' and rebalancer.old_token_id %}
+                            (job {{ rebalancer.old_token_id }})
+                            {% endif %}
+                            {% if rebalancer.status == "MONITORED" %}
+                            monitored
+                            {% endif %}
+                        </a>
+                        {% endif %}
+                    </td>
+                    <td data-label="Status">{{ nft.status }}</td>
+                    <td class="col-medium" data-label="Date">{{ nft.date_add_liquidity }}</td>
+                    <td class="col-low" data-label="Initial">
+                        <span data-token0-initial="token0-initial">{{ format_token_amount(nft.initial_token0_amount,
+                            nft.token0_symbol) }}</span> {{ nft.token0_symbol }}
+                        <br>
+                        <span data-token1-initial="token1-initial">{{ format_token_amount(nft.initial_token1_amount,
+                            nft.token1_symbol) }}</span> {{ nft.token1_symbol }}
+                    </td>
+                    <!-- <td data-label="Initial $">
+                        {{ "{:,.0f}".format(nft.initial_total_value) }}
+                    </td> -->
+                    <td class="col-low" data-label="Current">
+                        <span data-token0-current="token0-current">{{ format_token_amount(nft.current_token0_amount,
+                            nft.token0_symbol) }}</span> {{ nft.token0_symbol }}
+                        <br>
+                        <span data-token1-current="token1-current">{{ format_token_amount(nft.current_token1_amount,
+                            nft.token1_symbol) }}</span> {{ nft.token1_symbol }}
+                    </td>
+                    <td class="current-highlight {% if nft.has_invalid_price %}error-text{% endif %}"
+                        data-label="Current $" data-sort="{{ nft.current_total_value }}">
+                        <span data-current-price="current-price">{{ "{:,.0f}".format(nft.current_total_value) }}</span>
+                        <br>
+                        {% if nft.total_active_staked_usd == 0 %}
+                        <span class="strike-red">{{ "{:,.0f}".format(nft.total_active_staked_usd) }}</span>
+                        {% else %}
+                        {{ "{:,.0f}".format(nft.total_active_staked_usd) }}
+                        {% endif %}
+                        <br>
+                        {{ "{:,.0f}".format(nft.total_pool_liquidity_usd) }}
+                    </td>
+                    <td class="col-low" data-label="Delta">
+                        <!-- {{ "{:,.4f}".format(nft.current_token0_amount - nft.initial_token0_amount) }} {{ nft.token0_symbol }}
+                                    <br>
+                                    {{ "{:,.4f}".format(nft.current_token1_amount - nft.initial_token1_amount) }} {{ nft.token1_symbol }} -->
+                        <span data-token0-delta="token0-delta">{{ format_token_amount(nft.current_token0_amount -
+                            nft.initial_token0_amount, nft.token0_symbol) }}</span> {{ nft.token0_symbol }}
+                        <br>
+                        <span data-token1-delta="token1-delta">{{ format_token_amount(nft.current_token1_amount -
+                            nft.initial_token1_amount, nft.token1_symbol) }}</span> {{ nft.token1_symbol }}
+                    </td>
+                    <td class="col-medium" data-label="Delta $" data-sort="{{ nft.delta_amount }}">{{ "{:,.0f}".format(nft.delta_amount) }}
+                    </td>
+                    <td class="col-medium" data-label="Delta %">{{ nft.percent_change|round(0)|int }}%</td>
+                    <td class="col-low" data-label="Fee" data-sort="{{ nft.total_unclaimed_fee }}">
+                        <!-- {{ "{:,.6f}".format(nft.unclaimed_fee_token0) }} {{ nft.token0_symbol }}
+                                        <br>
+                                        {{ "{:,.6f}".format(nft.unclaimed_fee_token1) }} {{ nft.token1_symbol }} -->
+                        <span data-token0-fee="token0-fee">{{ format_token_amount(nft.unclaimed_fee_token0,
+                            nft.token0_symbol) }}</span> {{ nft.token0_symbol}}
+                        <br>
+                        <span data-token1-fee="token1-fee">{{ format_token_amount(nft.unclaimed_fee_token1,
+                            nft.token1_symbol) }}</span> {{ nft.token1_symbol }}
+
+                        {% if nft.chain != "SOL" and nft.chain != "MON" and nft.type_dex in ["pancakeswap", "aerodrome"] %}
+                        <button class="action-collect" data-chain="{{ nft.chain }}" data-nft="{{ nft.nft_id }}"
+                            data-wallet="{{ nft.wallet_address }}" data-dex="{{ nft.type_dex }}" data-npm-address="{{ nft.npm_address|default('') }}"
+                            {% if rebalancer and rebalancer.is_risky %}disabled data-rebalancer-blocked="1"{% endif %}
+                            title="{% if rebalancer and rebalancer.is_risky %}Blocked: position is in configured rebalancer job {{ rebalancer.status }}{% else %}Collect unclaimed trading fees{% endif %}">
+                            💰 Collect
+                        </button>
+                        {% endif %}
+                    </td>
+                    <td class="tick-data col-low" data-pool="{{ nft.pool_address }}" data-tick-lower="{{ nft.lower_price }}"
+                        data-tick-upper="{{ nft.upper_price }}" data-tick-current="{{ nft.current_price }}"
+                        data-dec0="{{ nft.token0_decimals_sol or nft.token0_decimals_evm }}"
+                        data-dec1="{{ nft.token1_decimals_sol or nft.token1_decimals_evm }}"
+                        data-tok0="{{ nft.token0_symbol }}" data-tok1="{{ nft.token1_symbol }}">
+
+                        <div class="price-deviation-layout">
+                            <div class="price-info">
+                                <div class="deviation-line">Lower = <span class="lower-dev">...</span>%</div>
+                                <div class="deviation-line">Upper = <span class="upper-dev">...</span>%</div>
+                                <div class="deviation-line current-price-row">Current = <span class="current-price">...</span></div>
+                                <div class="pair-label"></div>
+                            </div>
+
+                            <button type="button" class="toggle-price-dir" data-invert="false"
+                                title="Toggle price direction" aria-label="Toggle price direction">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="col-medium" data-label="Fee $" data-sort="{{ nft.total_unclaimed_fee }}">{{
+                        "{:,.2f}".format(nft.total_unclaimed_fee) }}</td>
+                    <td data-label="PnL" data-sort="{{ pnl_value_usd }}">
+                        <!-- {{ "{:,.2f}".format(floating_assets) }}
+                        <br>
+                        {{ "{:,.2f}".format(realized_profit) }} -->
+                        <!-- <br> -->
+                        <span data-pnl-value-usd="pnl-value-usd"><strong>${{ "{:,.2f}".format(pnl_value_usd)
+                                }}</strong></span>
+                        <br>
+                        <span data-pnl-value-base="pnl-value-base"><strong>{{ "{:,.4f}".format(pnl_value_base) }} {{
+                                base_symbol }}</strong></span>
+                        <!-- <br> -->
+                        <!-- {{ "{:,.2f}".format(roi) }} % -->
+                    </td>
+                    <td class="col-low" data-label="Fee APR" data-sort="{{ nft.lp_fee_apr }}">{{ "{:,.0f}".format(nft.lp_fee_apr) }}%
+                    </td>
+                    <td class="fee-apr-1h-highlight {% if nft.has_invalid_price %}error-text{% endif %}"
+                        data-label="Fee APR 1h" data-sort="{{ nft.lp_fee_apr_1h }}">{{
+                        "{:,.0f}".format(nft.lp_fee_apr_1h) }}%</td>
+                    <td class="col-medium" data-label="Pending CAKE" data-sort="{{ nft.pending_cake }}">
+                        {{ "{:,.4f}".format(nft.pending_cake) }}
+                        {% if nft.type_dex == "aerodrome" %}
+                        AERO
+                        {% elif nft.type_dex == "pancakeswap" %}
+                        CAKE
+                        {% endif %}
+
+                        {% if nft.chain != "SOL" and nft.chain != "MON" and nft.type_dex in ["pancakeswap", "aerodrome"] %}
+                        <button class="action-harvest" data-chain="{{ nft.chain }}" data-nft="{{ nft.nft_id }}"
+                            data-wallet="{{ nft.wallet_address }}" data-dex="{{ nft.type_dex }}" data-npm-address="{{ nft.npm_address|default('') }}"
+                            {% if rebalancer and rebalancer.is_risky %}disabled data-rebalancer-blocked="1"{% endif %}
+                            title="{% if rebalancer and rebalancer.is_risky %}Blocked: position is in configured rebalancer job {{ rebalancer.status }}{% else %}Harvest pending CAKE rewards{% endif %}">
+                            🌾 Harvest
+                        </button>
+                        {% endif %}
+                    </td>
+                    <td class="cake-reward-1h-highlight col-medium {% if nft.has_invalid_price %}error-text{% endif %}"
+                        data-label="CAKE Reward 1h" data-sort="{{ nft.cake_reward_1h }}">{{
+                        "{:,.0f}".format(nft.cake_reward_1h) }}%</td>
+                    <!-- <td data-label="Boost">{{ nft.boost_multiplier }}</td> -->
+                    <td class="apr-1h-highlight {% if nft.has_invalid_price %}error-text{% endif %}"
+                        data-label="Farm APR 1h" data-sort="{{ nft.farm_apr_1h }}">{{ "{:,.0f}".format(nft.farm_apr_1h)
+                        }}%</td>
+                    <td class="col-medium" data-label="Farm APR All" data-sort="{{ nft.farm_apr_all }}">{{
+                        "{:,.0f}".format(nft.farm_apr_all) }}%</td>
+                    <td data-label="DexType" style="display:none;">{{ nft.type_dex }}</td>
+                    <td class="col-low" data-label="Time Created">{{ nft.created_at }}</td>
+                    {% if not nft_id %}
+                    <td class="col-medium" data-label="History"><a href="{{ url_for('index', chain=nft.chain, nft_id=nft.nft_id, npm_address=nft.npm_address) if nft.npm_address else url_for('index', chain=nft.chain, nft_id=nft.nft_id) }}">
+                            {% if nft.chain == "SOL" %}
+                            {{ nft.nft_id[:4] }}...{{ nft.nft_id[-4:] }}
+                            {% else %}
+                            {{ nft.nft_id }}
+                            {% endif %}
+                        </a>
+                    </td>
+                    <td class="col-medium" data-label="Blacklist">
+                        <form method="POST" action="{{ url_for('add_blacklist_route') }}">
+                            <input type="hidden" name="wallet_address" value="{{ nft.wallet_address }}">
+                            <input type="hidden" name="chain" value="{{ nft.chain }}">
+                            <input type="hidden" name="nft_id" value="{{ nft.nft_id }}">
+                            <input type="hidden" name="type_dex" value="{{ nft.type_dex }}">
+                            <input type="hidden" name="npm_address" value="{{ nft.npm_address|default('') }}">
+                            <button type="submit" class="btn-toggle"
+                                onclick="return confirm('Bạn có chắc chắn muốn thêm {{ nft.nft_id }} thuộc ví: {{ nft.wallet_address }} trên chain: {{ nft.chain }} vào blacklist không?')">
+                                <i class="fa-solid fa-ban"></i>
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
+                    <td data-label="Action">
+                        <button class="action-refresh" data-chain="{{ nft.chain }}"
+                            data-wallet="{{ nft.wallet_address }}" data-nft="{{ nft.nft_id }}"
+                            data-dex="{{ nft.type_dex }}" data-npm-address="{{ nft.npm_address|default('') }}">
+                            🔄 Refresh
+                        </button>
+                        {% if nft.chain != "SOL" and nft.chain != "MON" and nft.type_dex in ["pancakeswap", "aerodrome"] %}
+                        <button class="action-withdraw" data-chain="{{ nft.chain }}" data-nft="{{ nft.nft_id }}"
+                            data-wallet="{{ nft.wallet_address }}" data-dex="{{ nft.type_dex }}" data-npm-address="{{ nft.npm_address|default('') }}"
+                            {% if rebalancer and rebalancer.is_risky %}disabled data-rebalancer-blocked="1"{% endif %}
+                            title="{% if rebalancer and rebalancer.is_risky %}Blocked: position is in configured rebalancer job {{ rebalancer.status }}{% else %}Withdraw entire position (irreversible!){% endif %}">
+                            📥 Withdraw
+                        </button>
+                        {% endif %}
+                        <span class="loading-text" style="display:none;">⏳ Processing...</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<div class="pagination-container">
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% set base_params = "" %}
+        {% if nft_id %}
+        {% set base_params = base_params + "nft_id=" + nft_id|string + "&" %}
+        {% endif %}
+        {% if wallet_address %}
+        {% set base_params = base_params + "wallet_address=" + wallet_address + "&" %}
+        {% endif %}
+        {% if chain_name %}
+        {% set base_params = base_params + "chain=" + chain_name + "&" %}
+        {% endif %}
+        {% if action %}
+        {% set base_params = base_params + "action=" + action + "&" %}
+        {% endif %}
+        {% if start_date %}
+        {% set base_params = base_params + "start_date=" + start_date + "&" %}
+        {% endif %}
+        {% if end_date %}
+        {% set base_params = base_params + "end_date=" + end_date + "&" %}
+        {% endif %}
+
+        {% if page > 1 %}
+        <a href="?{{ base_params }}page={{ page - 1 }}">⬅ Prev</a>
+        {% endif %}
+
+        {% if page > 3 %}
+        <a href="?{{ base_params }}page=1">1</a>
+        {% if page > 4 %}
+        <span>...</span>
+        {% endif %}
+        {% endif %}
+
+        {% for p in range(page - 2, page + 3) %}
+        {% if p > 0 and p <= total_pages %} {% if p==page %} <strong>{{ p }}</strong>
+            {% else %}
+            <a href="?{{ base_params }}page={{ p }}">{{ p }}</a>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+
+            {% if page < total_pages - 2 %} {% if page < total_pages - 3 %} <span>...</span>
+                {% endif %}
+                <a href="?{{ base_params }}page={{ total_pages }}">{{ total_pages }}</a>
+                {% endif %}
+
+                {% if page < total_pages %} <a href="?{{ base_params }}page={{ page + 1 }}">Next ➡</a>
+                    {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="summary-card">
+    <div class="summary-header">
+        <h2>🔎 Portfolio Performance Summary</h2>
+    </div>
+
+    {% if summary_data %}
+    <div class="metric-cards-container">
+        <div class="metric-card pnl">
+            <div class="metric-icon"><i class="fa-solid fa-chart-line"></i></div>
+            <div class="metric-info">
+                <span class="metric-label">Total Delta USD</span>
+                <span class="metric-value">${{ "{:,.2f}".format(summary_data | sum(attribute='delta_usd')) }}</span>
+            </div>
+        </div>
+        {% if total_pending_cake %}
+        <div class="metric-card rewards">
+            <div class="metric-icon"><i class="fa-solid fa-wheat-awn"></i></div>
+            <div class="metric-info">
+                <span class="metric-label">Total Pending Rewards</span>
+                <span class="metric-value">{{ "{:,.2f}".format(total_pending_cake) }} CAKE</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="summary-table-wrapper">
+        <table class="performance-table">
+            <thead>
+                <tr>
+                    <th>Token</th>
+                    <th>Initial</th>
+                    <th>Current</th>
+                    <th>Delta</th>
+                    <th>Delta USD</th>
+                    <th>Fee</th>
+                    {% if summary_data | selectattr('binance_side') | list | length > 0 %}
+                    <th>Binance Info</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in summary_data %}
+                <tr {% if row.binance_side %} class="binance-row" {% endif %}>
+                    <td><strong>{{ row.token }}</strong></td>
+                    <td>{{ "{:,.4f}".format(row.initial) }}</td>
+                    <td>{{ "{:,.4f}".format(row.current) }}</td>
+                    <td class="{% if row.delta > 0 %}text-success{% elif row.delta < 0 %}text-danger{% endif %}">
+                        {{ "{:,.4f}".format(row.delta) }}
+                    </td>
+                    <td
+                        class="{% if row.delta_usd > 0 %}text-success{% elif row.delta_usd < 0 %}text-danger{% endif %}">
+                        ${{ "{:,.2f}".format(row.delta_usd) }}
+                    </td>
+                    <td>{{ "{:,.2f}".format(row.fee) }}</td>
+                    {% if row.binance_side %}
+                    <td class="binance-info-cell">
+                        <span class="badge {{ row.binance_side.lower() }}">{{ row.binance_side }}</span>
+                        {{ row.binance_amount }} @ {{ row.mark_price }}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+</div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    document.querySelectorAll(".copy-nft-id-btn").forEach(copyBtn => {
+        copyBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const copyValue = copyBtn.dataset.copyValue || "";
+            if (!copyValue) return;
+
+            navigator.clipboard.writeText(copyValue).then(() => {
+                copyBtn.classList.add("copied");
+                setTimeout(() => copyBtn.classList.remove("copied"), 1200);
+            });
+        });
+    });
+
+    function tickToPrice(tick, dec0, dec1, invert = false) {
+        const price = Math.pow(1.0001, tick) * Math.pow(10, dec0 - dec1);
+        return invert ? 1 / price : price;
+    }
+
+    function formatDeviationPercent(value) {
+        const displayLimit = 999;
+
+        if (value === Infinity) return `>${displayLimit}`;
+        if (value === -Infinity) return `<-${displayLimit}`;
+        if (!Number.isFinite(value)) return "--";
+        if (value > displayLimit) return `>${displayLimit}`;
+        if (value < -displayLimit) return `<-${displayLimit}`;
+
+        const rounded = Math.round(value);
+        return Math.abs(rounded) === 0 ? "0" : String(rounded);
+    }
+
+    function formatDeviationPercentTitle(value) {
+        if (typeof value !== "number" || Number.isNaN(value)) return "";
+        return `${value.toString()}%`;
+    }
+
+    function formatDeviationCurrentPrice(value) {
+        if (!Number.isFinite(value)) return "--";
+
+        const absValue = Math.abs(value);
+        if (absValue === 0) return "0";
+
+        if (absValue >= 1e9 || absValue < 1e-6) {
+            return value.toExponential(4).replace("e+", "e");
+        }
+
+        const fractionDigits = absValue < 0.0001 ? 8 : absValue < 1 ? 6 : absValue >= 1000000 ? 0 : absValue >= 1000 ? 2 : 4;
+        return value.toLocaleString(undefined, {
+            maximumFractionDigits: fractionDigits
+        });
+    }
+
+    function updateDeviation(td, invert = false) {
+        const tickLower = parseInt(td.dataset.tickLower);
+        const tickUpper = parseInt(td.dataset.tickUpper);
+        const tickCurrent = parseInt(td.dataset.tickCurrent);
+        const dec0 = parseInt(td.dataset.dec0);
+        const dec1 = parseInt(td.dataset.dec1);
+        const tok0 = td.dataset.tok0;
+        const tok1 = td.dataset.tok1;
+
+        // ✅ Đổi chỗ tickLower/tickUpper khi invert
+        const [lowTick, upTick] = invert ? [tickUpper, tickLower] : [tickLower, tickUpper];
+
+        const priceLower = tickToPrice(lowTick, dec0, dec1, invert);
+        const priceUpper = tickToPrice(upTick, dec0, dec1, invert);
+        const priceCurrent = tickToPrice(tickCurrent, dec0, dec1, invert);
+
+        const devLow = ((priceLower / priceCurrent) - 1) * 100;
+        const devUp = ((priceUpper / priceCurrent) - 1) * 100;
+
+        const lowerDevEl = td.querySelector('.lower-dev');
+        const upperDevEl = td.querySelector('.upper-dev');
+        const currentPriceEl = td.querySelector('.current-price');
+        const pairLabel = invert ? `${tok0}/${tok1}` : `${tok1}/${tok0}`;
+        const pairLabelEl = td.querySelector('.pair-label');
+
+        lowerDevEl.textContent = formatDeviationPercent(devLow);
+        lowerDevEl.title = formatDeviationPercentTitle(devLow);
+        upperDevEl.textContent = formatDeviationPercent(devUp);
+        upperDevEl.title = formatDeviationPercentTitle(devUp);
+        currentPriceEl.textContent = formatDeviationCurrentPrice(priceCurrent);
+        currentPriceEl.title = Number.isFinite(priceCurrent) ? priceCurrent.toString() : "";
+        pairLabelEl.textContent = pairLabel;
+        pairLabelEl.title = pairLabel;
+    }
+
+    // ✅ Khởi tạo mặc định theo token1/token0 cho tất cả rows
+    document.querySelectorAll('.tick-data').forEach(td => updateDeviation(td, false));
+
+    // ✅ Lật riêng từng position
+    document.querySelectorAll('.toggle-price-dir').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const td = this.closest('.tick-data');
+            const invert = this.dataset.invert === 'true';
+            this.dataset.invert = (!invert).toString();
+            updateDeviation(td, !invert);
+        });
+    });
+
+    async function refreshCurrentTicks() {
+        try {
+            const res = await fetch("/api/current-tick-update");
+            const data = await res.json();
+
+            data.forEach(item => {
+                const poolAddr = item.pool_address;
+                const currentTick = item.current_price;
+                // console.log(`Updating pool ${poolAddr} with current tick ${currentTick}`);
+                const cell = document.querySelector(`.tick-data[data-pool="${poolAddr}"]`);
+                if (!cell) return;
+
+                cell.dataset.tickCurrent = currentTick;
+
+                const invert = cell.querySelector(".toggle-price-dir").dataset.invert === "true";
+                updateDeviation(cell, invert);
+            });
+
+            console.log(`✅ UI updated (${data.length} pools)`);
+        } catch (err) {
+            console.error("Error updating current ticks:", err);
+        }
+    }
+
+    setInterval(refreshCurrentTicks, 60000); // 30s/lần
+    refreshCurrentTicks(); // chạy ngay lần đầu
+
+    // ✅ Bật popup nhập binance api key
+    // document.addEventListener("DOMContentLoaded", () => {
+    //   const form = document.getElementById("addressForm");
+    //   const popup = document.getElementById("binancePopup");
+    //   const btnConfirm = document.getElementById("btnConfirmKeys");
+    //   const btnSkip = document.getElementById("btnSkipKeys");
+    //   const apiKeyInput = document.getElementById("binanceApiKey");
+    //   const secretKeyInput = document.getElementById("binanceSecretKey");
+
+    //   // Giữ action (wallet / wallet_chain)
+    //   let pendingAction = "";
+
+    //   // Khi nhấn nút filter
+    //   document.querySelectorAll("button[value='filter_only'], button[value='filter_by_wallet_and_chain']")
+    //     .forEach(btn => {
+    //       btn.addEventListener("click", e => {
+    //         e.preventDefault();
+    //         pendingAction = btn.value;
+    //         popup.classList.remove("hidden"); // bật popup
+    //       });
+    //     });
+
+    //   // Khi người dùng xác nhận nhập key
+    //   btnConfirm.addEventListener("click", () => {
+    //     addHiddenInput("binance_api_key", apiKeyInput.value);
+    //     addHiddenInput("binance_secret_key", secretKeyInput.value);
+    //     addHiddenInput("action", pendingAction);
+    //     popup.classList.add("hidden");
+    //     form.submit();
+    //   });
+
+    //   // Nếu người dùng bỏ qua key
+    //   btnSkip.addEventListener("click", () => {
+    //     addHiddenInput("action", pendingAction);
+    //     popup.classList.add("hidden");
+    //     form.submit();
+    //   });
+
+    //   // Hàm tiện ích thêm input ẩn vào form
+    //   function addHiddenInput(name, value) {
+    //     const input = document.createElement("input");
+    //     input.type = "hidden";
+    //     input.name = name;
+    //     input.value = value;
+    //     form.appendChild(input);
+    //   }
+    // });
+    function formatDate(date) {
+        // Format date
+        const d = new Date(date);
+        const f = d.getFullYear() + "-" +
+            String(d.getMonth() + 1).padStart(2, "0") + "-" +
+            String(d.getDate()).padStart(2, "0") + " " +
+            String(d.getHours()).padStart(2, "0") + ":" +
+            String(d.getMinutes()).padStart(2, "0") + ":" +
+            String(d.getSeconds()).padStart(2, "0");
+
+        return f;
+    }
+
+    function formatTokenAmount(value, tokenSymbol) {
+        const token = tokenSymbol.toUpperCase();
+        if (token.includes("ETH") || token.includes("BNB")) {
+            return Number(value).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+        } else if (token.includes("BTC")) {
+            return Number(value).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        } else if (token.includes("SOL")) {
+            return Number(value).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+        } else {
+            return Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        }
+    }
+
+    // Handle refresh button click
+    document.querySelectorAll(".action-refresh").forEach(btn => {
+        btn.addEventListener("click", async () => {
+
+            const chain = btn.getAttribute("data-chain");
+            const wallet = btn.getAttribute("data-wallet");
+            const nft_id = btn.getAttribute("data-nft");
+            const dex = btn.getAttribute("data-dex");
+            const npm_address = btn.getAttribute("data-npm-address") || "";
+            console.log("Refreshing", chain, wallet, nft_id, dex, npm_address);
+
+            const row = btn.closest("tr");
+            const loadingText = row ? row.querySelector(".loading-text") : null;
+
+            let pulseInterval;
+            let tdList;
+            let isError = false;
+
+            // 🔥 Bật hiệu ứng
+            if (row) {
+                btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = "⏳ Refreshing..."; // đổi text button
+                row.classList.add("refreshing");
+
+                tdList = row.querySelectorAll("td");
+                let pulse = 0;
+                pulseInterval = setInterval(() => {
+                    const alpha = 0.2 + 0.3 * Math.abs(Math.sin(pulse));
+                    tdList.forEach(td => {
+                        td.style.boxShadow = `0 0 10px rgba(255, 190, 29, ${alpha}) inset`;
+                    });
+                    pulse += 0.1;
+                }, 50);
+
+                console.log("after add -> classList:", row.classList);
+            }
+
+            try {
+                const response = await fetch("/refresh", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chain, wallet_address: wallet, nft_id, dex, npm_address })
+                });
+
+                const resData = await response.json();
+                console.log("Refresh response:", resData);
+
+                if (!resData || resData.status === "error" || resData.data === null) {
+                    console.warn("NFT data invalid:", resData);
+                    isError = true;
+                    btn.textContent = "❌ Error";
+                    return;  // ← return NẰM TRONG IF
+                }
+
+                const nftData = resData.data;
+
+                if (!row) return;
+                const token0_symbol = String(nftData[3]);
+                const token1_symbol = String(nftData[4]);
+
+                const initial_date = formatDate(nftData[9]);
+                const current_date = formatDate(nftData[32]);
+                let type_dex = String(nftData[37]).toLocaleLowerCase();
+                let reward_token = "";
+                if (type_dex === "aerodrome") {
+                    reward_token = "@ero";
+                } else if (type_dex === "pancakeswap") {
+                    reward_token = "C@ke";
+                }
+                console.log("Parsed dex type:", type_dex, "reward token:", reward_token);
+
+                row.querySelector("[data-label='Date']").textContent = initial_date;
+                row.querySelector("[data-token0-initial='token0-initial']").textContent = formatTokenAmount(Number(nftData[10]), token0_symbol);
+                row.querySelector("[data-token1-initial='token1-initial']").textContent = formatTokenAmount(Number(nftData[11]), token1_symbol);
+                row.querySelector("[data-token0-current='token0-current']").textContent = formatTokenAmount(Number(nftData[13]), token0_symbol);
+                row.querySelector("[data-token1-current='token1-current']").textContent = formatTokenAmount(Number(nftData[14]), token1_symbol);
+                row.querySelector("[data-token0-delta='token0-delta']").textContent = formatTokenAmount((Number(nftData[13]) - Number(nftData[10])), token0_symbol);
+                row.querySelector("[data-token1-delta='token1-delta']").textContent = formatTokenAmount((Number(nftData[14]) - Number(nftData[11])), token1_symbol);
+                row.querySelector("[data-token0-fee='token0-fee']").textContent = formatTokenAmount(Number(nftData[18]), token0_symbol);
+                row.querySelector("[data-token1-fee='token1-fee']").textContent = formatTokenAmount(Number(nftData[19]), token1_symbol);
+
+                row.querySelector("[data-label='Fee APR']").textContent = Number(nftData[21]).toFixed(2) + "%";
+                row.querySelector("[data-label='Fee APR 1h']").textContent = Number(nftData[22]).toFixed(0) + "%";
+                row.querySelector("[data-current-price='current-price']").textContent = Number(nftData[15]).toFixed(0);
+                row.querySelector("[data-label='Delta $']").textContent = Number(nftData[16]).toFixed(0);
+                row.querySelector("[data-label='Fee $']").textContent = Number(nftData[20]).toFixed(2);
+                row.querySelector("[data-label='Pending CAKE']").textContent = Number(nftData[23]).toFixed(4) + " " + reward_token;
+                row.querySelector("[data-label='CAKE Reward 1h']").textContent = Number(nftData[24]).toFixed(0) + "%";
+                row.querySelector("[data-label='Farm APR 1h']").textContent = Number(nftData[26]).toFixed(0) + "%";
+                row.querySelector("[data-label='Farm APR All']").textContent = Number(nftData[27]).toFixed(0) + "%";
+                row.querySelector("[data-label='Time Created']").textContent = current_date;
+                row.querySelector("[data-label='Status']").textContent = String(nftData[8]);
+
+                const td = row.querySelector(".tick-data");
+                if (td) {
+                    Object.assign(td.dataset, {
+                        tickLower: nftData[34],
+                        tickUpper: nftData[35],
+                        tickCurrent: nftData[36],
+                    });
+
+                    updateDeviation(td, td.querySelector(".toggle-price-dir").dataset.invert === "true");
+                }
+
+            } catch (err) {
+                console.error("Error refreshing NFT:", err);
+                btn.textContent = "❌ Error";
+            } finally {
+                // 🔥 Tắt hiệu ứng
+                if (row) {
+                    row.classList.remove("refreshing");
+                    btn.disabled = false;
+
+                    // ❗ Chỉ reset nếu không lỗi:
+                    if (!isError) {
+                        btn.textContent = "Refresh";
+                    }
+
+                    clearInterval(pulseInterval);
+                    tdList.forEach(td => {
+                        td.style.backgroundColor = "";
+                        td.style.backgroundImage = "";
+                        td.style.boxShadow = "";
+                        td.style.transform = "";
+                        td.style.transition = "";
+                    });
+                }
+            }
+        });
+    }); 
+</script>
+
+<!-- Ethers.js v6 for Collect/Harvest wallet interaction -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.min.js"></script>
+<!-- Collect Fee & Harvest Reward module -->
+<script src="{{ url_for('static', filename='js/collect_harvest_evm.js') }}?v=1.1"></script>
+<style>
+    .action-collect,
+    .action-harvest {
+        padding: 4px 8px;
+        margin: 2px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8em;
+        font-weight: bold;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    }
+
+    .action-withdraw {
+        padding: 6px 12px;
+        margin: 2px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: bold;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: #fff;
+        margin-top: 5px;
+        width: 100%;
+    }
+
+    .action-withdraw:hover:not(:disabled) {
+        background: linear-gradient(135deg, #c0392b, #a93226);
+        transform: scale(1.05);
+    }
+
+    .action-collect {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: #fff;
+    }
+
+    .action-collect:hover:not(:disabled) {
+        background: linear-gradient(135deg, #e67e22, #d35400);
+        transform: scale(1.05);
+    }
+
+    .action-harvest {
+        background: linear-gradient(135deg, #27ae60, #2ecc71);
+        color: #fff;
+    }
+
+    .action-harvest:hover:not(:disabled) {
+        background: linear-gradient(135deg, #219a52, #27ae60);
+        transform: scale(1.05);
+    }
+
+    .action-collect:disabled,
+    .action-harvest:disabled,
+    .action-withdraw:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .rebalancer-position-row td:first-child {
+        border-left: 4px solid #3b82f6 !important;
+    }
+
+    .rebalancer-risky-row td:first-child {
+        border-left-color: #ef4444 !important;
+    }
+
+    .rebalancer-position-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        border: 1px solid rgba(59, 130, 246, 0.35);
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .rebalancer-badge-info {
+        color: #2563eb;
+        background: rgba(59, 130, 246, 0.14);
+    }
+
+    .rebalancer-badge-danger {
+        color: #dc2626;
+        background: rgba(239, 68, 68, 0.16);
+        border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .rebalancer-action-warning {
+        margin-top: 6px;
+        color: #dc2626;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+</style>
+
+</div>
+{% endblock %}

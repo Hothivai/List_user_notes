@@ -1,0 +1,166 @@
+@import url(style.css);
+
+.mint .title {
+    text-align: center;
+    font-size: 40px;
+    font-weight: 700;
+}
+
+.mint .container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 700px;
+}
+
+.mint .mint-position {
+    border: 2px solid var(--bg-color);
+    padding: 24px;
+    width: 680px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.mint h2 {
+    text-align: center;
+    margin-bottom: 10px;
+    margin-top: 15px;
+    font-size: 30px;
+}
+
+.mint .sub-title {
+    text-align: center;
+    font-size: 16px;
+    margin-bottom: 30px;
+    margin-top: 16px;
+    color: #666;
+}
+
+.mint .section {
+    margin-bottom: 30px;
+}
+
+.mint .section label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.mint input[type="text"],
+.mint input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    font-family: 700;
+    box-sizing: border-box;
+    /* FIX tràn input */
+}
+
+.mint .price-range {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mint .price-range input {
+    width: 50%;
+}
+
+.mint .price-range span {
+    font-size: 24px;
+    margin: 0 10px;
+}
+
+.mint .buttons {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 15px;
+}
+
+.mint .buttons button {
+    padding: 8px 14px;
+    border: 1px solid #333;
+    background: #f5f5f5;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.mint .buttons button:hover {
+    background: #ddd;
+}
+
+.mint .submit-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-top: 60px;
+    border: none;
+    border-radius: 5px;
+    background: var(--bg-menu);
+    color: var(--bg-color);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.mint .submit-btn:hover {
+    background: var(--menu-hover);
+}
+
+.toast {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+    background: #222;
+    color: #fff;
+    padding: 14px 18px;
+    border-radius: 8px;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 9999;
+}
+.toast.show {
+    display: block;
+    opacity: 1;
+}
+.toast.success {
+    background: #28a745;
+}
+.toast.error {
+    background: #dc3545;
+}
+.toast a {
+    color: #fff;
+    text-decoration: underline;
+}
+
+a.btn-check-range {
+    display: inline-flex;  
+    align-items: center; 
+    justify-content: center;
+    text-align: center;
+}
+
+/* Balance */
+.balance-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.balance-text {
+    color: #888;
+    font-size: 14px;
+}
+
+.max-btn {
+    padding: 2px 8px;
+    background-color: #eee;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 12px;
+}

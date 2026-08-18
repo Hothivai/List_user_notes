@@ -1,0 +1,341 @@
+{% extends "layout.html" %}
+
+{% block content %}
+{% set display_dex = 'Aerodrome V3' if dex_type == 'aerodrome_v3' else 'PancakeSwap V3' %}
+<div class="hero-section">
+    <h1 class="title">
+        <span>🚀</span>
+        <span class="gradient-text">Semi-Auto Mint EVM on {{ display_dex }}</span>
+    </h1>
+    <p class="subtitle">Analyze top positions and mint optimized liquidity on EVM chains</p>
+</div>
+
+<div class="mint-container max-w-3xl mx-auto p-4">
+
+    <!-- 1. Configuration & Wallet (Read-only từ route trước) -->
+    <div class="card bg-base-100 shadow-xl mb-6 border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title text-sm opacity-30 uppercase tracking-widest">1. Pool & Wallet</h2>
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="flex flex-col gap-1 w-full">
+                    <div class="flex gap-2">
+                        <span id="badgeChain" class="badge badge-primary font-bold">{{ chain }}</span>
+                        <span class="badge badge-outline font-mono" id="poolFee">--% Fee</span>
+                    </div>
+                    <input type="text" id="poolAddress" value="{{ pool_address }}"
+                        class="input input-bordered w-full font-mono text-sm" placeholder="Nhập địa chỉ Pool...">
+                </div>
+                <button id="btnConnect" class="btn btn-primary min-w-[180px]">
+                    <span class="loading loading-spinner loading-sm mr-2 hidden" id="connectSpinner"></span>
+                    <span id="connectText">Loading pool & Choose Range...</span>
+                </button>
+            </div>
+            <div id="walletInfo" class="hidden text-right mt-2 text-success font-mono text-xs font-bold"></div>
+        </div>
+    </div>
+
+    <!-- 2. Pool Info Stats (Cấu trúc giống Solana UI) -->
+    <div id="mainInterface" class="space-y-6">
+
+        <div class="stats shadow w-full bg-base-200 border border-base-300">
+            <div class="stat">
+                <div class="stat-title font-bold">Pool</div>
+                <div class="stat-value text-xl text-primary" id="tokenPairDisplay">Loading...</div>
+                <div class="stat-desc text-xs mt-1" id="currentPriceDisplay">Price: ---</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title font-bold">Current Status</div>
+                <div class="stat-value text-sm font-mono text-success" id="tickDisplay">Tick: ---</div>
+
+                <div class="flex flex-col gap-2 text-[10px] opacity-80 border-t border-base-300 pt-2 mt-2">
+                    <div class="flex justify-between">
+                        <span>Liquidity (Active):</span>
+                        <span class="font-mono font-bold" id="totalLiquidity">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Safety Margin:</span>
+                        <span class="font-mono font-bold text-success" id="safetyMargin">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Strategy & Capital Slider -->
+        <div class="card bg-base-100 shadow-xl border-2 border-primary">
+            <div class="card-body">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="card-title text-lg">⚡ Planning & Capital</h2>
+                </div>
+
+                <!-- Strategy Analysis Cards -->
+                <!-- <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6"> -->
+                <!-- Balanced Strategy -->
+                <!-- <div class="strategy-card p-3 rounded-xl border-2 border-base-300 bg-base-200 cursor-pointer hover:border-primary transition-all selected" data-mode="balanced" id="card_balanced">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="badge badge-success badge-xs">An toàn</span>
+                            <input type="radio" name="strategy_radio" class="radio radio-primary radio-xs" checked>
+                        </div>
+                        <div class="text-xs font-bold uppercase">Balanced</div>
+                        <div class="text-[9px] opacity-60 leading-tight mt-1">Dải rộng, phù hợp cho việc farm lâu dài và ổn định.</div>
+                        <div class="mt-2 text-[10px] font-mono space-y-0.5">
+                            <div class="flex justify-between"><span>APR:</span><span class="text-success" id="apr_preview_balanced">~0%</span></div>
+                            <div class="flex justify-between"><span>Rủi ro:</span><span class="text-success">Thấp</span></div>
+                        </div>
+                    </div> -->
+
+                <!-- Aggressive Strategy -->
+                <!-- <div class="strategy-card p-3 rounded-xl border-2 border-base-300 bg-base-200 cursor-pointer hover:border-primary transition-all" data-mode="aggressive" id="card_aggressive">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="badge badge-warning badge-xs">Lợi nhuận cao</span>
+                            <input type="radio" name="strategy_radio" class="radio radio-primary radio-xs">
+                        </div>
+                        <div class="text-xs font-bold uppercase">Aggressive</div>
+                        <div class="text-[9px] opacity-60 leading-tight mt-1">Dải hẹp quanh giá hiện tại, tối ưu hóa phí thu được.</div>
+                        <div class="mt-2 text-[10px] font-mono space-y-0.5">
+                            <div class="flex justify-between"><span>APR:</span><span class="text-warning" id="apr_preview_aggressive">~0%</span></div>
+                            <div class="flex justify-between"><span>Rủi ro:</span><span class="text-warning">Trung bình</span></div>
+                        </div>
+                    </div> -->
+
+                <!-- Manual Strategy -->
+                <!-- <div class="strategy-card p-3 rounded-xl border-2 border-base-300 bg-base-200 cursor-pointer hover:border-primary transition-all" data-mode="manual" id="card_manual">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="badge badge-ghost badge-xs">Tùy chỉnh</span>
+                            <input type="radio" name="strategy_radio" class="radio radio-primary radio-xs">
+                        </div>
+                        <div class="text-xs font-bold uppercase">Manual</div>
+                        <div class="text-[9px] opacity-60 leading-tight mt-1">Tự nhập thông số dải giá theo ý muốn của bạn.</div>
+                        <div class="mt-2 text-[10px] font-mono space-y-0.5">
+                            <div class="flex justify-between"><span>APR:</span><span class="text-gray-400">Tùy chỉnh</span></div>
+                            <div class="flex justify-between"><span>Rủi ro:</span><span class="text-gray-400">---</span></div>
+                        </div>
+                    </div>
+                </div> -->
+
+                <!-- BẢNG TOP 10 WHALES -->
+                <div class="mb-6">
+                    <h3 class="text-xs font-bold opacity-70 uppercase mb-3 flex items-center justify-between">
+                        <span>🏆 Top 10 Active Positions in Pool</span>
+                        <span class="badge badge-sm badge-ghost" id="competitorCount">Loading...</span>
+                    </h3>
+                    <div
+                        class="overflow-x-auto bg-base-200 rounded-box border border-base-300 max-h-[250px] overflow-y-auto">
+                        <table class="table table-xs w-full">
+                            <thead class="sticky top-0 bg-base-200 shadow-sm z-10">
+                                <tr>
+                                    <th>Owner</th>
+                                    <th>NFT ID</th>
+                                    <th>Range (Lower ➡️ Upper)</th>
+                                    <th>% Change</th>
+                                    <th>Liquidity $</th>
+                                    <th>Share %</th>
+                                    <th class="text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topPositionsBody">
+                                <tr>
+                                    <td colspan="7" class="text-center py-6">
+                                        <span class="loading loading-spinner text-primary"></span> Loading the
+                                        Supgraphs...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Manual Inputs (Ẩn/Hiện) -->
+                <div id="manualInputs"
+                    class="hidden grid grid-cols-2 gap-4 mb-6 p-3 bg-base-200 rounded-lg border border-dashed border-base-300">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text-alt font-bold opacity-50">TICK LOWER</span></label>
+                        <input type="number" id="tickLow" placeholder="Tick Low"
+                            class="input input-sm input-bordered font-mono text-center">
+                        <div class="text-[10px] mt-1 text-center font-mono">
+                            <span class="opacity-50">% from current:</span>
+                            <span id="pctLower" class="font-bold text-warning">--</span>
+                        </div>
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text-alt font-bold opacity-50">TICK UPPER</span></label>
+                        <input type="number" id="tickUp" placeholder="Tick Up"
+                            class="input input-sm input-bordered font-mono text-center">
+                        <div class="text-[10px] mt-1 text-center font-mono">
+                            <span class="opacity-50">% from current:</span>
+                            <span id="pctUpper" class="font-bold text-success">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold opacity-60 uppercase">Expected Capital(USD)</span>
+                    <span class="badge badge-lg badge-secondary font-mono font-bold" id="capitalBadge">$10</span>
+                </div>
+                <input type="range" min="1" max="1000" value="10" step="1" class="range range-primary range-lg"
+                    id="capitalSlider">
+
+                <div class="w-full flex justify-between text-[10px] px-2 mt-2 opacity-50 font-mono">
+                    <span>$10</span>
+                    <span>$100</span>
+                    <span>$500</span>
+                </div>
+
+                <!-- Strategy Deep Analysis Results -->
+                <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-base-200 rounded-box border border-base-300">
+                    <div class="text-center border-r border-base-300">
+                        <div class="text-[10px] uppercase font-bold opacity-60">Estimated Farm APR</div>
+                        <div class="text-3xl font-black text-warning" id="estAPR">0%</div>
+                        <div class="text-[9px] opacity-50 mt-1" id="apr_subtext">Based on 24h volume</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] uppercase font-bold opacity-60">Estimated Liquidity</div>
+                        <div class="text-2xl font-mono font-black text-primary" id="estLiquidity">0%</div>
+                        <div class="text-[9px] opacity-50 mt-1">Estimate the liquidity depth of
+                            the created position.</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] uppercase font-bold opacity-60">Reward Share</div>
+                        <div class="text-2xl font-mono font-black text-primary" id="estShare">0.00%</div>
+                        <div class="text-[9px] opacity-50 mt-1">Reward share of pool</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Assets Required -->
+        <div class="card bg-base-100 shadow-xl border border-base-300">
+            <div class="card-body p-6">
+                <h2 class="card-title text-sm opacity-70 uppercase mb-4 tracking-widest">💰 Assets Required</h2>
+
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-4 bg-base-200 rounded-lg border border-base-300">
+                        <span class="font-bold flex items-center gap-2">
+                            <span class="badge badge-neutral">1</span> <span id="lblT0">TOKEN0</span>
+                        </span>
+                        <div class="flex items-center gap-4">
+                            <button id="btnMaxT0"
+                                class="btn btn-[10px] min-h-0 h-5 px-2 bg-transparent text-color hover:bg-primary/20 border border-primary/30 rounded font-mono text-[10px] uppercase hidden"
+                                style="line-height: 1;">Max</button>
+                            <div class="text-right">
+                                <span class="font-mono text-lg font-bold" id="valT0">0.00</span> -
+                                <span id="t0USD">$0.00</span>
+                                <div class="text-[10px] opacity-60">Wallet: <span id="balT0"
+                                        class="text-primary font-bold">--</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-4 bg-base-200 rounded-lg border border-base-300">
+                        <span class="font-bold flex items-center gap-2">
+                            <span class="badge badge-neutral">2</span> <span id="lblT1">TOKEN1</span>
+                        </span>
+                        <div class="flex items-center gap-4">
+                            <button id="btnMaxT1"
+                                class="btn btn-[10px] min-h-0 h-5 px-2 bg-transparent text-color hover:bg-primary/20 border border-primary/30 rounded font-mono text-[10px] uppercase hidden"
+                                style="line-height: 1;">Max</button>
+                            <div class="text-right">
+                                <span class="font-mono text-lg font-bold" id="valT1">0.00</span> -
+                                <span id="t1USD">$0.00</span>
+                                <div class="text-[10px] opacity-60">Wallet: <span id="balT1"
+                                        class="text-primary font-bold">--</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Display (EVM Specific thay cho 1 nút Execute) -->
+                <div class="mt-6 border-t border-base-300 pt-6">
+                    <h2 class="card-title text-sm opacity-70 uppercase mb-4 tracking-widest">
+                        <i class="fas fa-layer-group"></i>
+                        PIPELINE EXECUTION STEPS
+                    </h2>
+                    <div id="pipelineContainer" class="space-y-3 mb-6">
+                        <!-- Steps will be dynamic -->
+                        <div class="pipeline-step" id="step_swap">
+                            <div class="step-number">1</div>
+                            <span class="text-xs font-bold flex-1">Zap Swap (Balance)</span>
+                            <div class="status-indicator"></div>
+                        </div>
+                        <div class="pipeline-step" id="step_approve">
+                            <div class="step-number">2</div>
+                            <span class="text-xs font-bold flex-1">Approve Tokens</span>
+                            <div class="status-indicator"></div>
+                        </div>
+                        <div class="pipeline-step" id="step_mint">
+                            <div class="step-number">3</div>
+                            <span class="text-xs font-bold flex-1">Mint NFT & Auto-Stake</span>
+                            <div class="status-indicator"></div>
+                        </div>
+                    </div>
+
+                    <div id="positionWarning" class="alert alert-warning hidden shadow-lg mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                            class="stroke-current">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span id="positionWarningText" class="text-sm"></span>
+                    </div>
+
+                    <!-- Warning / Info Box -->
+                    <div id="actionWarning" class="alert hidden shadow-sm mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                            class="stroke-current">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span id="actionText" class="text-sm"></span>
+                    </div>
+
+                    <button id="btnExecute" class="btn btn-primary w-full btn-lg shadow-lg mt-4" disabled>
+                        <span class="loading loading-spinner hidden" id="mainSpinner"></span>
+                        <span id="btnText">INITIALIZING...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Slippage & Info -->
+        <div class="card bg-base-100 shadow-xl border border-base-300">
+            <div class="card-body">
+                <h2 class="card-title text-sm opacity-70 uppercase mb-2 tracking-widest">
+                    <i class="fas fa-cog"></i>
+                    TRANSACTION SETTINGS
+                </h2>
+                
+                <div class="slippage-info-row">
+                    <span class="slippage-info-label">
+                        📉 Price Impact
+                    </span>
+                    <span class="slippage-info-value" id="priceImpact">0.00%</span>
+                </div>
+                <div class="slippage-info-row">
+                    <span class="slippage-info-label">
+                        📍 Route
+                    </span>
+                    <span class="slippage-info-value" id="routeDex">Unknown</span>
+                </div>
+                <div class="slippage-info-row">
+                    <span class="slippage-info-label">
+                        🛡️ Max Slippage
+                    </span>
+                    <div id="slippageGroup">
+                        <button class="btn btn-active" data-sl="10">0.1%</button>
+                        <button class="btn" data-sl="50">0.5%</button>
+                        <button class="btn" data-sl="100">1.0%</button>
+                        <div class="join-item relative">
+                            <input type="number" id="customSlippage" placeholder="Custom" step="0.1" min="0.1" max="50">
+                            <span>%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container" class="toast toast-top toast-end z-50"></div>
+
+<!-- Logic -->
+<script type="module" src="/static/js/semi_auto_mint_evm.js"></script>
+{% endblock %}

@@ -1,0 +1,210 @@
+@import url(style.css);
+
+.wrapper {
+    display: flex;
+    column-gap: 50px;
+    justify-content: end;
+}
+
+.address-text {
+    font-size: 16px;
+    color: var(--bg-color);
+    font-weight: bold;
+    line-height: 1;
+}
+
+.btn-login {
+    background-color: var(--bg-menu);
+    border: none;
+    border-radius: 16px;
+    box-shadow: rgba(14, 14, 44, 0.4) 0 -1px 0 -1px inset;
+    color: var(--bg-color);
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    padding: 0 16px;
+    height: 32px;
+    opacity: 1;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.btn-login:hover {
+    opacity: 0.65;
+}
+
+.chain-selector {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 10000;
+    background-color: var(--bg-menu);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 8px;
+    min-width: 220px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.wrapper {
+    position: relative;
+}
+
+.wrapper-dropdown {
+    position: relative;
+    z-index: 2000;
+}
+
+.wrapper-content {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-menu);
+    border-radius: 16px;
+    box-shadow: rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
+    cursor: pointer;
+    height: 32px;
+    padding-left: 32px;
+    padding-right: 8px;
+}
+
+.wrapper-icon {
+    position: absolute;
+    display: flex;
+    background-color: var(--bg-menu);
+    border-color: var(--bg-color);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    top: 0;
+    left: 0;
+    justify-content: center;
+    align-items: center;
+    border-width: 2px;
+    border-style: solid;
+    z-index: 20;
+}
+
+.wrapper-icon svg {
+    align-self: center;
+    fill: var(--bg-color);
+    color: var(--bg-color);
+    flex-shrink: 0;
+}
+
+.wrapper-text {
+    display: block;
+    margin-left: 8px;
+    margin-right: 4px;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    z-index: 2000;
+    width: 300px;
+    min-width: 280px;
+    background-color: var(--bg-menu);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    margin-top: 8px;
+    opacity: 0;
+    transition: visibility 0.2s, opacity 0.2s;
+}
+
+.dropdown-content.active {
+    display: block;
+    opacity: 1;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+}
+
+.dropdown-container {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+}
+
+.account-img {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 32px;
+    height: 32px;
+    margin-right: 12px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+
+
+.account-img .img {
+    max-width: 40px;
+    max-height: 40px;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.account-img .img img {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    left: 0;
+    top: 0;
+}
+
+.account-img .img img:before {
+    content: '';
+    display: block;
+    padding-bottom: 100%;
+}
+
+.header-title .wrapper-text {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--bg-color);
+}
+
+.btn-disconnect {
+    position: relative;
+    border-radius: 8px;
+    height: 30px;
+    border: none;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    /*border-bottom: 2px solid rgba(0,0,0,0.1);*/
+    align-items: center;
+    box-shadow: rgba(14, 14, 14, 0.4) 0 -1px 0 0 inset;
+    cursor: pointer;
+    opacity: 1;
+    outline: 0;
+    justify-content: center;
+    transition: background-color 0.2s, opacity 0.2s;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 0 8px;
+}
+
+.btn-disconnect:hover {
+    opacity: 0.9;
+    background-color: var(--bg-color);
+    color: var(--text-colors);
+}
+
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    /* Safari */
+    -moz-user-select: none;
+    /* Firefox */
+    -ms-user-select: none;
+    /* IE10+/Edge */
+}
