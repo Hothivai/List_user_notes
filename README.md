@@ -7,7 +7,7 @@ Trang web quản lý danh sách token (PancakeSwap, Aerodrome, Solana) kèm tín
 - **User Note:** Nhập và lưu ghi chú cho từng token (Tự động lưu khi nhấn Enter, rời chuột, hoặc nút Save).
 
 
-## 🛠️ Cài đặt và chạy (Copy & Paste 1 lần duy nhất)
+## 🛠️ Cài đặt và chạy 
 
 Mở **Terminal** (hoặc CMD/PowerShell), sau đó **copy và dán toàn bộ đoạn code dưới đây** vào đó, rồi nhấn Enter:
 
